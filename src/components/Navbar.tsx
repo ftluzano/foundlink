@@ -61,11 +61,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => onSelectTab(userRole === 'admin' ? 'admin' : 'directory')}
               className="flex items-center gap-2 group text-left cursor-pointer focus:outline-hidden"
             >
-              <img
-                src={ptcLogo}
-                alt="PTC FoundLink logo"
-                className="w-9 h-9 rounded-lg object-cover border border-slate-200 shadow-sm group-hover:opacity-90 transition-opacity"
-              />
+              <span className="brand-mark brand-mark--nav" aria-hidden="true">
+                <img src={ptcLogo} alt="" className="h-full w-full rounded-full object-cover" />
+              </span>
               <div className="flex items-baseline gap-1.5">
                 <span className="text-base font-bold tracking-tight text-slate-900 group-hover:text-slate-700">
                   PTC FoundLink

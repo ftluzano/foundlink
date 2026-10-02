@@ -167,11 +167,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
 
       {/* Brand Header */}
       <div className="relative z-10 flex items-center gap-2.75 mb-5 text-center">
-        <img
-          src={ptcLogo}
-          alt="PTC FoundLink logo"
-          className="w-10 h-10 rounded-xl object-cover border border-white/40 shadow-md"
-        />
+        <span className="brand-mark brand-mark--auth" aria-hidden="true">
+          <img src={ptcLogo} alt="" className="h-full w-full rounded-full object-cover" />
+        </span>
         <div className="text-left">
           <span className="text-lg font-bold tracking-tight text-white block leading-tight">
             PTC FoundLink
