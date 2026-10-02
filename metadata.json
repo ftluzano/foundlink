@@ -1,0 +1,6 @@
+{
+  "name": "FOUNDLINK",
+  "description": "A Web-Based Lost-and-Found Management and Item Recovery System with real-time attribute matching, claim verification workflows, and custodian analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
