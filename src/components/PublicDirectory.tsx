@@ -22,15 +22,13 @@ interface PublicDirectoryProps {
   onSelectItem: (item: ItemRecord) => void;
   onOpenReportModal: (type: ItemType) => void;
   onOpenClaimModal: (item: ItemRecord) => void;
-  onSeedDemoData: () => void;
 }
 
 export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
   items,
   onSelectItem,
   onOpenReportModal,
-  onOpenClaimModal,
-  onSeedDemoData
+  onOpenClaimModal
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | 'lost' | 'found'>('all');
@@ -331,15 +329,6 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
             >
               Report Lost Item
             </button>
-            {items.length === 0 && (
-              <button
-                onClick={onSeedDemoData}
-                className="px-3.5 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                <span>Load Sample Records</span>
-              </button>
-            )}
           </div>
         </div>
       ) : viewMode === 'grid' ? (
@@ -448,6 +437,16 @@ const ModernItemCard: React.FC<ModernItemCardProps> = ({ item, onSelect, onClaim
 
   return (
     <div className="bg-white rounded-xl border border-slate-200/90 hover:border-slate-300 shadow-xs flex flex-col justify-between transition-all group">
+      {item.photoUrl ? (
+        <div className="w-full h-40 overflow-hidden border-b border-slate-100 bg-slate-50">
+          <img src={item.photoUrl} alt={item.title} className="w-full h-full object-cover" />
+        </div>
+      ) : (
+        <div className="w-full h-40 bg-gradient-to-br from-slate-100 via-slate-50 to-slate-200 flex items-center justify-center text-slate-400 border-b border-slate-100">
+          <span className="text-[11px] font-semibold uppercase tracking-wide">No Photo</span>
+        </div>
+      )}
+
       <div className="p-4 space-y-2.5">
         {/* Top Badges */}
         <div className="flex items-center justify-between gap-2">

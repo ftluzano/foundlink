@@ -167,11 +167,27 @@ class RealtimeStore {
       const notifsRaw = localStorage.getItem('foundlink_notifications');
       const auditRaw = localStorage.getItem('foundlink_audit_logs');
 
-      this.items = itemsRaw ? JSON.parse(itemsRaw) : [];
-      this.claims = claimsRaw ? JSON.parse(claimsRaw) : [];
-      this.potentialMatches = matchesRaw ? JSON.parse(matchesRaw) : [];
-      this.notifications = notifsRaw ? JSON.parse(notifsRaw) : [];
-      this.auditLogs = auditRaw ? JSON.parse(auditRaw) : [];
+      this.items = this.sanitizeLocalData(itemsRaw ? JSON.parse(itemsRaw) : [], 'item');
+      this.claims = this.sanitizeLocalData(claimsRaw ? JSON.parse(claimsRaw) : [], 'claim');
+      this.potentialMatches = this.sanitizeLocalData(matchesRaw ? JSON.parse(matchesRaw) : [], 'match');
+      this.notifications = this.sanitizeLocalData(notifsRaw ? JSON.parse(notifsRaw) : [], 'notification');
+      this.auditLogs = this.sanitizeLocalData(auditRaw ? JSON.parse(auditRaw) : [], 'audit');
+
+      if (this.items.length === 0 && itemsRaw) {
+        localStorage.removeItem('foundlink_items');
+      }
+      if (this.claims.length === 0 && claimsRaw) {
+        localStorage.removeItem('foundlink_claims');
+      }
+      if (this.potentialMatches.length === 0 && matchesRaw) {
+        localStorage.removeItem('foundlink_matches');
+      }
+      if (this.notifications.length === 0 && notifsRaw) {
+        localStorage.removeItem('foundlink_notifications');
+      }
+      if (this.auditLogs.length === 0 && auditRaw) {
+        localStorage.removeItem('foundlink_audit_logs');
+      }
 
       if (notify) {
         this.notifyAll();
@@ -184,11 +200,35 @@ class RealtimeStore {
   private saveToLocalStorageAndBroadcast(broadcast = true) {
     if (typeof window === 'undefined') return;
     try {
-      localStorage.setItem('foundlink_items', JSON.stringify(this.items));
-      localStorage.setItem('foundlink_claims', JSON.stringify(this.claims));
-      localStorage.setItem('foundlink_matches', JSON.stringify(this.potentialMatches));
-      localStorage.setItem('foundlink_notifications', JSON.stringify(this.notifications));
-      localStorage.setItem('foundlink_audit_logs', JSON.stringify(this.auditLogs));
+      if (this.items.length === 0) {
+        localStorage.removeItem('foundlink_items');
+      } else {
+        localStorage.setItem('foundlink_items', JSON.stringify(this.items));
+      }
+
+      if (this.claims.length === 0) {
+        localStorage.removeItem('foundlink_claims');
+      } else {
+        localStorage.setItem('foundlink_claims', JSON.stringify(this.claims));
+      }
+
+      if (this.potentialMatches.length === 0) {
+        localStorage.removeItem('foundlink_matches');
+      } else {
+        localStorage.setItem('foundlink_matches', JSON.stringify(this.potentialMatches));
+      }
+
+      if (this.notifications.length === 0) {
+        localStorage.removeItem('foundlink_notifications');
+      } else {
+        localStorage.setItem('foundlink_notifications', JSON.stringify(this.notifications));
+      }
+
+      if (this.auditLogs.length === 0) {
+        localStorage.removeItem('foundlink_audit_logs');
+      } else {
+        localStorage.setItem('foundlink_audit_logs', JSON.stringify(this.auditLogs));
+      }
 
       if (broadcast && this.broadcastChannel) {
         this.broadcastChannel.postMessage({ type: 'SYNC_ALL' });
@@ -599,138 +639,54 @@ class RealtimeStore {
     this.potentialMatches = [];
     this.notifications = [];
     this.auditLogs = [];
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('foundlink_items');
+      localStorage.removeItem('foundlink_claims');
+      localStorage.removeItem('foundlink_matches');
+      localStorage.removeItem('foundlink_notifications');
+      localStorage.removeItem('foundlink_audit_logs');
+    }
     this.saveToLocalStorageAndBroadcast(true);
     this.notifyAll();
   }
 
+  private sanitizeLocalData<T extends Record<string, any>>(records: T[], type: 'item' | 'claim' | 'match' | 'notification' | 'audit'): T[] {
+    if (!Array.isArray(records)) return [];
+
+    const isDemoRecord = (record: Record<string, any>) => {
+      const rawId = String(record.id ?? '');
+      const rawTitle = String(record.title ?? '');
+      const rawName = String(record.reportedBy?.name ?? '');
+      return rawId.startsWith('FL-K79') || rawId.startsWith('match_FL-K79') || rawTitle.includes('Lenovo') || rawName.includes('Ramon Lab') || rawName.includes('Brian Jomarie');
+    };
+
+    const filtered = records.filter((record) => {
+      if (!record || typeof record !== 'object') return false;
+      if (type === 'item' && isDemoRecord(record)) return false;
+      if (type === 'claim' && record.foundItemId && String(record.foundItemId).startsWith('FL-K79')) return false;
+      if (type === 'match' && (String(record.id ?? '').startsWith('match_FL-K79') || String(record.lostItemId ?? '').startsWith('FL-K79') || String(record.foundItemId ?? '').startsWith('FL-K79'))) return false;
+      if (type === 'notification' && String(record.relatedItemId ?? '').startsWith('FL-K79')) return false;
+      if (type === 'audit' && String(record.entityId ?? '').startsWith('FL-K79')) return false;
+      return true;
+    });
+
+    return filtered;
+  }
+
   seedCapstoneDemoData(): void {
-    const now = new Date();
-    const dAgo = (days: number) => new Date(now.getTime() - days * 24 * 60 * 60 * 1000).toISOString();
+    this.items = [];
+    this.claims = [];
+    this.potentialMatches = [];
+    this.notifications = [];
+    this.auditLogs = [];
 
-    const sampleItems: ItemRecord[] = [
-      {
-        id: 'FL-K79-01',
-        type: 'found',
-        title: 'Lenovo ThinkPad 65W USB-C Charger',
-        category: 'Electronics & Gadgets',
-        description: 'Found plugged into wall socket after evening class.',
-        color: 'Black',
-        brand: 'Lenovo',
-        location: 'Main Academic Building - 3rd Floor IT Computer Lab',
-        dateTime: dAgo(1),
-        distinctiveMarks: 'Initials "BJ" written in silver marker',
-        secretDetails: 'Serial ending in 9842, small nick on US prong',
-        photoUrl: null,
-        status: 'Found',
-        reportedBy: {
-          uid: 'finder-101',
-          name: 'Ramon Lab Custodian',
-          email: 'custodian.lab@ptc.edu.ph',
-          role: 'staff',
-          phone: '+63 917 555 1201'
-        },
-        custodyLocation: 'Campus Security Office - Cabinet A (Electronics)',
-        createdAt: dAgo(1),
-        updatedAt: dAgo(1)
-      },
-      {
-        id: 'FL-K79-02',
-        type: 'lost',
-        title: 'Lenovo 65W Laptop Charger',
-        category: 'Electronics & Gadgets',
-        description: 'Left in Lab 302 during BSIT lecture.',
-        color: 'Black',
-        brand: 'Lenovo',
-        location: 'Main Academic Building - 3rd Floor IT Computer Lab',
-        dateTime: dAgo(1),
-        distinctiveMarks: 'Silver pentel initials "BJ" on charger brick',
-        secretDetails: 'Type-C connector, rubber strap attached',
-        photoUrl: null,
-        status: 'Potential Match',
-        reportedBy: {
-          uid: 'student-verdera',
-          name: 'Brian Jomarie Verdera',
-          email: 'brian.verdera@ptc.edu.ph',
-          role: 'student',
-          idNumber: '2023-3TL-0482',
-          phone: '+63 928 441 9902'
-        },
-        createdAt: dAgo(1),
-        updatedAt: dAgo(1)
-      },
-      {
-        id: 'FL-K79-03',
-        type: 'found',
-        title: 'Brown Leather Bi-Fold Wallet',
-        category: 'Wallets, Purses & Cash',
-        description: 'Discovered on table in canteen near window.',
-        color: 'Brown / Tan',
-        brand: 'Leather Co',
-        location: 'Student Center & Canteen',
-        dateTime: dAgo(2),
-        distinctiveMarks: 'Green PTC lanyard attached to zipper pouch',
-        secretDetails: 'Beep card with sticker and 2x 100 peso bills inside',
-        photoUrl: null,
-        status: 'Under Verification',
-        reportedBy: {
-          uid: 'student-204',
-          name: 'Camille Santos',
-          email: 'camille.santos@ptc.edu.ph',
-          role: 'student',
-          idNumber: '2024-1BSBA-019'
-        },
-        custodyLocation: 'Campus Security Office - Safe Box (IDs & Valuables)',
-        createdAt: dAgo(2),
-        updatedAt: dAgo(2)
-      },
-      {
-        id: 'FL-K79-04',
-        type: 'found',
-        title: 'AquaFlask 32oz Cobalt Tumbler',
-        category: 'Tumblers & Personal Items',
-        description: 'Left on bench beside Covered Court after sports practice.',
-        color: 'Blue / Navy',
-        brand: 'AquaFlask',
-        location: 'Campus Quadrangle & Covered Court',
-        dateTime: dAgo(3),
-        distinctiveMarks: 'Anime stickers on bottom silicone boot',
-        secretDetails: 'Spout cap has small dent; sticker says "PTC IT"',
-        photoUrl: null,
-        status: 'Found',
-        reportedBy: {
-          uid: 'security-01',
-          name: 'Officer Dela Cruz',
-          email: 'security.gate1@ptc.edu.ph',
-          role: 'admin',
-          phone: 'Ext. 104'
-        },
-        custodyLocation: 'Library Custody Desk',
-        createdAt: dAgo(3),
-        updatedAt: dAgo(3)
-      }
-    ];
-
-    this.items = sampleItems;
-    this.potentialMatches = [
-      {
-        id: 'match_FL-K79-02_FL-K79-01',
-        lostItemId: 'FL-K79-02',
-        foundItemId: 'FL-K79-01',
-        lostItemTitle: 'Lenovo 65W Laptop Charger',
-        foundItemTitle: 'Lenovo ThinkPad 65W USB-C Charger',
-        score: 95,
-        factors: [
-          { factor: 'Category', match: true, scoreWeight: 30, detail: 'Electronics & Gadgets' },
-          { factor: 'Location', match: true, scoreWeight: 20, detail: 'Exact location match' },
-          { factor: 'Color', match: true, scoreWeight: 15, detail: 'Black' },
-          { factor: 'Brand', match: true, scoreWeight: 15, detail: 'Lenovo' },
-          { factor: 'Date Proximity', match: true, scoreWeight: 10, detail: 'Within 24 hours' },
-          { factor: 'Keywords', match: true, scoreWeight: 5, detail: '65W charger' }
-        ],
-        status: 'pending',
-        detectedAt: dAgo(1)
-      }
-    ];
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('foundlink_items');
+      localStorage.removeItem('foundlink_claims');
+      localStorage.removeItem('foundlink_matches');
+      localStorage.removeItem('foundlink_notifications');
+      localStorage.removeItem('foundlink_audit_logs');
+    }
 
     this.saveToLocalStorageAndBroadcast(true);
     this.notifyAll();

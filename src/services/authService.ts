@@ -9,7 +9,18 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { auth, db, googleProvider } from './firebase';
-import { UserProfile } from '../types';
+import { UserProfile, UserRole } from '../types';
+
+const DEFAULT_CUSTODIAN_EMAILS = new Set(['ftluzano@paterostechnologicalcollege.edu.ph']);
+
+const resolveUserRole = (email: string, role?: UserRole): UserRole => {
+  const normalizedEmail = (email || '').trim().toLowerCase();
+
+  if (role === 'admin') return 'admin';
+  if (DEFAULT_CUSTODIAN_EMAILS.has(normalizedEmail)) return 'admin';
+
+  return 'student';
+};
 
 export const authService = {
   /**
@@ -55,6 +66,7 @@ export const authService = {
         email: email.trim(),
         yearLevel: profileData.yearLevel,
         studentIdNumber: profileData.studentIdNumber.trim(),
+        role: resolveUserRole(email, 'student'),
         photoBase64: profileData.photoBase64 || ''
       };
 
@@ -96,6 +108,7 @@ export const authService = {
         email: email.trim(),
         yearLevel: profileData.yearLevel,
         studentIdNumber: profileData.studentIdNumber.trim() || '2023-3TL-0482',
+        role: resolveUserRole(email, 'student'),
         photoBase64: profileData.photoBase64 || ''
       };
       return fallbackProfile;
@@ -121,6 +134,7 @@ export const authService = {
         email: cleanEmail,
         yearLevel: '3rd Year',
         studentIdNumber: '2023-3TL-0482',
+        role: resolveUserRole(cleanEmail, 'student'),
         photoBase64: ''
       };
     } catch (err: any) {
@@ -139,6 +153,7 @@ export const authService = {
             email: cleanEmail,
             yearLevel: '3rd Year',
             studentIdNumber: '2023-3TL-0482',
+            role: resolveUserRole(cleanEmail, 'student'),
             photoBase64: ''
           };
           await this.saveUserProfile(uid, newProfile).catch(() => {});
@@ -153,6 +168,7 @@ export const authService = {
             email: cleanEmail,
             yearLevel: '3rd Year',
             studentIdNumber: '2023-3TL-0482',
+            role: resolveUserRole(cleanEmail, 'student'),
             photoBase64: ''
           };
         }
@@ -167,6 +183,7 @@ export const authService = {
         email: cleanEmail,
         yearLevel: '3rd Year',
         studentIdNumber: '2023-3TL-0482',
+        role: resolveUserRole(cleanEmail, 'student'),
         photoBase64: ''
       };
     }
@@ -195,6 +212,7 @@ export const authService = {
         email: user.email || 'ftluzano@paterostechnologicalcollege.edu.ph',
         yearLevel: '3rd Year',
         studentIdNumber: '2023-3TL-0482',
+        role: resolveUserRole(user.email || '', 'student'),
         photoBase64: user.photoURL || ''
       };
 
@@ -226,6 +244,7 @@ export const authService = {
         email: 'ftluzano@paterostechnologicalcollege.edu.ph',
         yearLevel: '3rd Year (Junior)',
         studentIdNumber: '2023-3TL-0482',
+        role: 'admin',
         photoBase64: ''
       };
     }

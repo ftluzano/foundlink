@@ -1,3 +1,5 @@
+export type UserRole = 'student' | 'admin';
+
 export interface UserProfile {
   uid?: string;
   name: string;
@@ -6,6 +8,7 @@ export interface UserProfile {
   email: string;
   yearLevel: string;
   studentIdNumber: string;
+  role?: UserRole;
   photoBase64?: string;
 }
 

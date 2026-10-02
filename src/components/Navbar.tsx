@@ -62,7 +62,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <img
                 src={ptcLogo}
                 alt="PTC FoundLink logo"
-                className="w-8 h-8 rounded-lg object-cover border border-slate-200 shadow-sm group-hover:opacity-90 transition-opacity"
+                className="w-9 h-9 rounded-lg object-cover border border-slate-200 shadow-sm group-hover:opacity-90 transition-opacity"
               />
               <div className="flex items-baseline gap-1.5">
                 <span className="text-base font-bold tracking-tight text-slate-900 group-hover:text-slate-700">
@@ -190,34 +190,26 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Settings className="w-3 h-3 text-slate-400 hidden sm:inline" />
             </button>
 
-            {/* Role Switcher */}
+            {/* Role Status */}
             <div className="flex items-center bg-slate-100 rounded-md p-0.5 border border-slate-200 text-xs">
-              <button
-                onClick={() => {
-                  onChangeRole('student');
-                  onSelectTab('directory');
-                }}
-                className={`px-2 py-0.5 rounded font-medium transition-colors cursor-pointer ${
+              <span
+                className={`px-2 py-0.5 rounded font-medium ${
                   userRole === 'student'
                     ? 'bg-white text-slate-900 shadow-xs font-semibold'
-                    : 'text-slate-500 hover:text-slate-900'
+                    : 'text-slate-500'
                 }`}
               >
                 Student
-              </button>
-              <button
-                onClick={() => {
-                  onChangeRole('admin');
-                  onSelectTab('admin');
-                }}
-                className={`px-2 py-0.5 rounded font-medium transition-colors cursor-pointer ${
+              </span>
+              <span
+                className={`px-2 py-0.5 rounded font-medium ${
                   userRole === 'admin'
                     ? 'bg-slate-900 text-white shadow-xs font-semibold'
-                    : 'text-slate-500 hover:text-slate-900'
+                    : 'text-slate-500'
                 }`}
               >
                 Custodian
-              </button>
+              </span>
             </div>
 
             {/* Sign Out Button */}

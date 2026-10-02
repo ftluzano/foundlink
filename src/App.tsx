@@ -24,6 +24,17 @@ import { ProfileSettingsModal } from './components/ProfileSettingsModal';
 import { AuthScreen } from './components/AuthScreen';
 import { CheckCircle2 } from 'lucide-react';
 
+const DEFAULT_CUSTODIAN_EMAILS = new Set(['ftluzano@paterostechnologicalcollege.edu.ph']);
+
+const resolveUserRole = (profile?: Partial<UserProfile>): 'student' | 'admin' => {
+  const email = (profile?.email || '').trim().toLowerCase();
+
+  if (profile?.role === 'admin') return 'admin';
+  if (DEFAULT_CUSTODIAN_EMAILS.has(email)) return 'admin';
+
+  return 'student';
+};
+
 export default function App() {
   const [items, setItems] = useState<ItemRecord[]>([]);
   const [claims, setClaims] = useState<ClaimRecord[]>([]);
@@ -51,13 +62,18 @@ export default function App() {
       email: 'ftluzano@paterostechnologicalcollege.edu.ph',
       yearLevel: '3rd Year',
       studentIdNumber: '2023-3TL-0482',
+      role: 'admin',
       photoBase64: ''
     };
   });
 
   // Navigation & Role State
   const [currentTab, setCurrentTab] = useState<'directory' | 'claims' | 'admin' | 'my-reports'>('directory');
-  const [userRole, setUserRole] = useState<'student' | 'admin'>('student');
+  const [userRole, setUserRole] = useState<'student' | 'admin'>(() => resolveUserRole({ email: 'ftluzano@paterostechnologicalcollege.edu.ph', role: 'admin' }));
+
+  useEffect(() => {
+    setUserRole(resolveUserRole(userProfile));
+  }, [userProfile.email, userProfile.role]);
 
   // Modals
   const [reportModalOpen, setReportModalOpen] = useState(false);
@@ -131,11 +147,18 @@ export default function App() {
 
   // Auth Handlers
   const handleAuthSuccess = (profile: UserProfile) => {
-    setUserProfile(profile);
+    const normalizedProfile: UserProfile = {
+      ...profile,
+      role: resolveUserRole(profile),
+      email: (profile.email || '').trim()
+    };
+
+    setUserProfile(normalizedProfile);
+    setUserRole(resolveUserRole(normalizedProfile));
     setIsAuthenticated(true);
     localStorage.setItem('foundlink_authenticated', 'true');
-    localStorage.setItem('foundlink_user_profile', JSON.stringify(profile));
-    showToast(`Welcome to PTC FoundLink, ${profile.name}!`);
+    localStorage.setItem('foundlink_user_profile', JSON.stringify(normalizedProfile));
+    showToast(`Welcome to PTC FoundLink, ${normalizedProfile.name}!`);
   };
 
   const handleContinueAsGuest = () => {
@@ -162,17 +185,24 @@ export default function App() {
   };
 
   const handleSaveProfile = async (updated: UserProfile) => {
-    setUserProfile(updated);
+    const normalizedProfile: UserProfile = {
+      ...updated,
+      role: resolveUserRole(updated),
+      email: (updated.email || '').trim()
+    };
+
+    setUserProfile(normalizedProfile);
+    setUserRole(resolveUserRole(normalizedProfile));
     try {
-      localStorage.setItem('foundlink_user_profile', JSON.stringify(updated));
+      localStorage.setItem('foundlink_user_profile', JSON.stringify(normalizedProfile));
     } catch {
       // fallback
     }
 
     // Upload to Firebase Firestore
-    const currentUid = updated.uid || authService.getCurrentUser()?.uid || 'local_user';
+    const currentUid = normalizedProfile.uid || authService.getCurrentUser()?.uid || 'local_user';
     try {
-      await authService.saveUserProfile(currentUid, updated);
+      await authService.saveUserProfile(currentUid, normalizedProfile);
       showToast('Profile & 500x500 photo synced to Firebase');
     } catch {
       showToast('Profile saved locally');
@@ -261,10 +291,6 @@ export default function App() {
             onSelectItem={setSelectedItemForDetails}
             onOpenReportModal={handleOpenReportModal}
             onOpenClaimModal={(foundItem) => setSelectedItemForClaim({ found: foundItem })}
-            onSeedDemoData={() => {
-              realtimeStore.seedCapstoneDemoData();
-              showToast('Sample records loaded');
-            }}
           />
         )}
 
@@ -291,10 +317,6 @@ export default function App() {
             onUpdateCustody={handleUpdateCustody}
             onDeleteItem={handleDeleteItem}
             onOpenItemModal={setSelectedItemForDetails}
-            onSeedDemoData={() => {
-              realtimeStore.seedCapstoneDemoData();
-              showToast('Sample records loaded');
-            }}
             onClearAllData={() => {
               realtimeStore.clearAllData();
               showToast('Database reset');

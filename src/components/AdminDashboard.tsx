@@ -36,7 +36,6 @@ interface AdminDashboardProps {
   onUpdateCustody: (id: string, custody: string) => void;
   onDeleteItem: (id: string) => void;
   onOpenItemModal: (item: ItemRecord) => void;
-  onSeedDemoData: () => void;
   onClearAllData: () => void;
   onOpenFirebaseModal: () => void;
 }
@@ -51,7 +50,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onUpdateCustody,
   onDeleteItem,
   onOpenItemModal,
-  onSeedDemoData,
   onClearAllData,
   onOpenFirebaseModal
 }) => {
@@ -169,15 +167,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={onSeedDemoData}
-            className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer"
-            title="Populate test records"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-            <span>Seed Sample</span>
-          </button>
-
           <button
             onClick={() => {
               if (confirm('Clear all items and claims?')) onClearAllData();

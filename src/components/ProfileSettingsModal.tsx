@@ -13,7 +13,7 @@ import {
   Upload,
   Sparkles
 } from 'lucide-react';
-import { UserProfile } from '../types';
+import { UserProfile, UserRole } from '../types';
 import { resizeImageToBase64 } from '../utils/imageUtils';
 import { PTC_COURSE_GROUPS, PTC_COURSES, PTC_YEAR_LEVELS } from '../utils/ptcPrograms';
 
@@ -34,6 +34,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
   const [email, setEmail] = useState(profile.email);
   const [yearLevel, setYearLevel] = useState(profile.yearLevel || PTC_YEAR_LEVELS[2]);
   const [studentIdNumber, setStudentIdNumber] = useState(profile.studentIdNumber);
+  const [role, setRole] = useState<UserRole>(profile.role || (profile.email.toLowerCase() === 'ftluzano@paterostechnologicalcollege.edu.ph' ? 'admin' : 'student'));
   const [photoBase64, setPhotoBase64] = useState<string>(profile.photoBase64 || '');
   const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [imageError, setImageError] = useState('');
@@ -76,6 +77,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
       email: email.trim(),
       yearLevel,
       studentIdNumber: studentIdNumber.trim(),
+      role,
       photoBase64
     };
     onSaveProfile(updated);
@@ -106,9 +108,6 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
               <h2 className="text-sm font-bold text-white tracking-tight">
                 Student Profile & Account Settings
               </h2>
-              <p className="text-[11px] text-slate-300">
-                Connected to Firebase Firestore
-              </p>
             </div>
           </div>
           <button
@@ -135,9 +134,6 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
                 </div>
               </div>
 
-              <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800">
-                FIREBASE SYNCED
-              </span>
             </div>
 
             <div className="flex items-center gap-3 pt-1 border-t border-slate-700/60">
@@ -253,6 +249,23 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
             </div>
           </div>
 
+          <div className="space-y-3">
+            <div>
+              <label className="font-semibold text-slate-700 flex items-center gap-1 mb-1">
+                <Sparkles className="w-3.5 h-3.5 text-slate-400" />
+                <span>Account Role</span>
+              </label>
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value as UserRole)}
+                className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg focus:ring-1 focus:ring-slate-900 bg-white text-slate-900 text-xs font-medium"
+              >
+                <option value="student">Student</option>
+                <option value="admin">Custodian</option>
+              </select>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* User Name */}
             <div>
@@ -360,10 +373,6 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
                 className="w-full px-3 py-1.5 border border-slate-200 rounded-lg focus:ring-1 focus:ring-slate-900 bg-white font-mono"
               />
             </div>
-          </div>
-
-          <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-[11px] text-slate-500">
-            <strong>Firebase Data Sync:</strong> Your profile information and 500x500 photo are safely uploaded to Firebase Firestore and will automatically populate your loss reports and ownership claims.
           </div>
 
           {/* Buttons */}

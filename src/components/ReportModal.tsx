@@ -1,13 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   X,
   AlertCircle,
   HandHelping,
   Lock,
-  CheckCircle2
+  CheckCircle2,
+  Image as ImageIcon,
+  Upload,
+  Trash2
 } from 'lucide-react';
 import { ItemType, ItemCategory, ItemRecord, ReporterInfo, UserProfile } from '../types';
 import { CAMPUS_LOCATIONS, ITEM_CATEGORIES, ITEM_COLORS, CUSTODY_LOCATIONS } from '../services/campusLocations';
+import { resizeImageToBase64 } from '../utils/imageUtils';
 
 interface ReportModalProps {
   initialType?: ItemType;
@@ -36,6 +40,10 @@ export const ReportModal: React.FC<ReportModalProps> = ({
   const [distinctiveMarks, setDistinctiveMarks] = useState('');
   const [secretDetails, setSecretDetails] = useState('');
   const [custodyLocation, setCustodyLocation] = useState(CUSTODY_LOCATIONS[0]);
+  const [photoUrl, setPhotoUrl] = useState('');
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
+  const [imageError, setImageError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Reporter auto-filled from profile
   const [reporterName, setReporterName] = useState(userProfile?.name || '');
@@ -88,7 +96,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
         description: description.trim(),
         distinctiveMarks: distinctiveMarks.trim(),
         secretDetails: secretDetails.trim(),
-        photoUrl: null,
+        photoUrl: photoUrl || null,
         status: type === 'lost' ? 'Lost' : 'Found',
         reportedBy,
         custodyLocation: type === 'found' ? custodyLocation : undefined
@@ -101,6 +109,29 @@ export const ReportModal: React.FC<ReportModalProps> = ({
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImageError('');
+    setIsProcessingImage(true);
+
+    try {
+      const base64 = await resizeImageToBase64(file, 1200, 1200);
+      setPhotoUrl(base64);
+    } catch (err: any) {
+      setImageError(err.message || 'Failed to process image.');
+    } finally {
+      setIsProcessingImage(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemovePhoto = () => {
+    setPhotoUrl('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   return (
@@ -162,6 +193,57 @@ export const ReportModal: React.FC<ReportModalProps> = ({
 
           {/* Item Info */}
           <div className="space-y-3">
+            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-semibold text-slate-800 block text-xs">
+                  Item Photo {type === 'lost' ? '(Recommended)' : '(Optional)'}
+                </span>
+                {photoUrl && (
+                  <button
+                    type="button"
+                    onClick={handleRemovePhoto}
+                    className="px-2 py-1 text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-md font-medium flex items-center gap-1 cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Remove</span>
+                  </button>
+                )}
+              </div>
+
+              {photoUrl ? (
+                <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+                  <img src={photoUrl} alt="Uploaded item preview" className="w-full h-52 object-cover" />
+                </div>
+              ) : (
+                <div className="flex items-center justify-center border border-dashed border-slate-300 rounded-lg bg-white p-4">
+                  <div className="text-center text-slate-500">
+                    <ImageIcon className="w-7 h-7 mx-auto mb-2 text-slate-400" />
+                    <p className="text-[11px]">No photo attached yet</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoChange}
+                  className="hidden"
+                  id="item-photo-upload"
+                />
+                <label
+                  htmlFor="item-photo-upload"
+                  className="px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-300 rounded-md font-medium text-slate-700 flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+                >
+                  <Upload className="w-3.5 h-3.5 text-slate-500" />
+                  <span>{isProcessingImage ? 'Processing...' : 'Upload Photo'}</span>
+                </label>
+              </div>
+
+              {imageError && <p className="text-[10px] text-rose-600 font-medium">{imageError}</p>}
+            </div>
+
             <div>
               <label className="block font-semibold text-slate-700 mb-1">
                 Item Title / Name *

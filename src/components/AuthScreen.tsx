@@ -60,6 +60,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
           email: email.trim(),
           yearLevel,
           studentIdNumber: studentIdNumber || '2023-3TL-0482',
+          role: 'student',
           photoBase64: ''
         };
         onAuthSuccess(fallback);
@@ -73,6 +74,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
         email: email.trim(),
         yearLevel,
         studentIdNumber: studentIdNumber || '2023-3TL-0482',
+        role: 'student',
         photoBase64: ''
       };
       onAuthSuccess(fallback);
@@ -113,6 +115,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
         studentIdNumber,
         contactNumber,
         email: email.trim(),
+        role: 'student',
         photoBase64: ''
       };
       onAuthSuccess(fallback);
@@ -163,11 +166,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
       <RotatingPlaceBackground />
 
       {/* Brand Header */}
-      <div className="relative z-10 flex items-center gap-2.5 mb-5 text-center">
+      <div className="relative z-10 flex items-center gap-2.75 mb-5 text-center">
         <img
           src={ptcLogo}
           alt="PTC FoundLink logo"
-          className="w-9 h-9 rounded-xl object-cover border border-white/40 shadow-md"
+          className="w-10 h-10 rounded-xl object-cover border border-white/40 shadow-md"
         />
         <div className="text-left">
           <span className="text-lg font-bold tracking-tight text-white block leading-tight">
@@ -180,7 +183,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
       </div>
 
       {/* Auth Card */}
-      <div className="relative z-10 bg-white text-slate-900 rounded-2xl shadow-2xl border border-slate-200/90 w-full max-w-md overflow-hidden text-xs">
+      <div className="relative z-10 bg-white text-slate-900 rounded-2xl shadow-2xl border border-slate-200/90 w-full max-w-[28rem] overflow-hidden text-xs">
         {/* Tab Switcher */}
         {mode !== 'forgot' ? (
           <div className="p-1.5 bg-slate-100 border-b border-slate-200 grid grid-cols-2 gap-1 font-semibold text-xs">
