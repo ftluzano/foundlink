@@ -16,7 +16,6 @@ const DEFAULT_CUSTODIAN_EMAILS = new Set(['ftluzano@paterostechnologicalcollege.
 const resolveUserRole = (email: string, role?: UserRole): UserRole => {
   const normalizedEmail = (email || '').trim().toLowerCase();
 
-  if (role === 'admin') return 'admin';
   if (DEFAULT_CUSTODIAN_EMAILS.has(normalizedEmail)) return 'admin';
 
   return 'student';
@@ -124,7 +123,7 @@ export const authService = {
       const cred = await signInWithEmailAndPassword(auth, cleanEmail, password);
       const uid = cred.user.uid;
       const profile = await this.getUserProfile(uid);
-      if (profile) return profile;
+      if (profile) return { ...profile, role: resolveUserRole(cred.user.email || cleanEmail) };
 
       return {
         uid,
@@ -200,7 +199,7 @@ export const authService = {
       // Check if profile exists in Firestore
       const existing = await this.getUserProfile(user.uid);
       if (existing) {
-        return existing;
+        return { ...existing, role: resolveUserRole(user.email || '') };
       }
 
       // Default template for new Google sign-in
@@ -244,7 +243,7 @@ export const authService = {
         email: 'ftluzano@paterostechnologicalcollege.edu.ph',
         yearLevel: '3rd Year (Junior)',
         studentIdNumber: '2023-3TL-0482',
-        role: 'admin',
+        role: 'student',
         photoBase64: ''
       };
     }
@@ -279,7 +278,8 @@ export const authService = {
     try {
       const snap = await getDoc(doc(db, 'users', uid));
       if (snap.exists()) {
-        return snap.data() as UserProfile;
+        const profile = snap.data() as UserProfile;
+        return { ...profile, role: resolveUserRole(auth.currentUser?.email || profile.email) };
       }
     } catch (err) {
       console.warn('Failed to load profile from Firestore:', err);
@@ -296,6 +296,7 @@ export const authService = {
         doc(db, 'users', uid),
         {
           ...profile,
+          role: resolveUserRole(auth.currentUser?.email || ''),
           updatedAt: new Date().toISOString()
         },
         { merge: true }
@@ -312,7 +313,8 @@ export const authService = {
     try {
       return onSnapshot(doc(db, 'users', uid), (snap) => {
         if (snap.exists()) {
-          callback(snap.data() as UserProfile);
+          const profile = snap.data() as UserProfile;
+          callback({ ...profile, role: resolveUserRole(auth.currentUser?.email || profile.email) });
         } else {
           callback(null);
         }

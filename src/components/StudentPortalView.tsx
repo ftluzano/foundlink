@@ -6,7 +6,6 @@ import {
   Printer,
   Plus,
   AlertCircle,
-  HandHelping,
   Sparkles,
   MapPin,
   Calendar,
@@ -56,10 +55,9 @@ export const StudentPortalView: React.FC<StudentPortalViewProps> = ({
 
   return (
     <div className="space-y-4 pb-12 text-xs">
-      {/* Student Welcome Header */}
-      <div className="bg-white rounded-xl p-4 sm:p-5 border border-slate-200/90 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="bg-white rounded-lg p-4 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-full overflow-hidden bg-slate-900 text-white flex items-center justify-center font-bold text-sm border-2 border-slate-200 shrink-0 shadow-xs">
+          <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-900 text-white flex items-center justify-center font-bold text-sm border border-slate-200 shrink-0">
             {userProfile.photoBase64 ? (
               <img
                 src={userProfile.photoBase64}
@@ -72,47 +70,29 @@ export const StudentPortalView: React.FC<StudentPortalViewProps> = ({
           </div>
 
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">
-                Student Recovery Portal
-              </span>
-              <span className="text-[10px] font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200 font-semibold">
-                FIREBASE ACTIVE
-              </span>
-            </div>
-            <h1 className="text-lg font-bold text-slate-900 tracking-tight mt-0.5">
-              Welcome, {userProfile.name}
-            </h1>
-            <p className="text-slate-500 text-xs mt-0.5">
-              {userProfile.course} · {userProfile.yearLevel} · ID: {userProfile.studentIdNumber}
-            </p>
+            <p className="text-[10px] font-semibold uppercase text-slate-500">Student workspace</p>
+            <h1 className="mt-0.5 text-base font-bold text-slate-900">{userProfile.name}</h1>
+            <p className="text-[11px] text-slate-500">{userProfile.course}</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           <button
             onClick={onOpenProfileModal}
-            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-semibold flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-200"
+            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md font-semibold flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-200"
           >
             <User className="w-3.5 h-3.5" />
-            <span>Profile Settings</span>
+            <span>Profile</span>
           </button>
 
           <button
             onClick={() => onOpenReportModal('lost')}
-            className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+            className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-md font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
           >
             <AlertCircle className="w-3.5 h-3.5" />
             <span>Report Lost</span>
           </button>
 
-          <button
-            onClick={() => onOpenReportModal('found')}
-            className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-semibold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
-          >
-            <HandHelping className="w-3.5 h-3.5" />
-            <span>Surrender Found</span>
-          </button>
         </div>
       </div>
 
@@ -128,7 +108,7 @@ export const StudentPortalView: React.FC<StudentPortalViewProps> = ({
             }`}
           >
             <FileCheck className="w-4 h-4" />
-            <span>My Ownership Claims</span>
+            <span>My Claims</span>
             <span className="text-slate-400 font-mono">({claims.length})</span>
           </button>
 
@@ -141,7 +121,7 @@ export const StudentPortalView: React.FC<StudentPortalViewProps> = ({
             }`}
           >
             <Clock className="w-4 h-4" />
-            <span>My Reported Items</span>
+            <span>My Reports</span>
             <span className="text-slate-400 font-mono">({myReports.length})</span>
           </button>
 
@@ -154,7 +134,7 @@ export const StudentPortalView: React.FC<StudentPortalViewProps> = ({
             }`}
           >
             <User className="w-4 h-4" />
-            <span>Student Credentials & Photo</span>
+            <span>Profile</span>
           </button>
 
           <button
@@ -166,7 +146,7 @@ export const StudentPortalView: React.FC<StudentPortalViewProps> = ({
             }`}
           >
             <Building className="w-4 h-4" />
-            <span>Custody Pickup Instructions</span>
+            <span>Pickup</span>
           </button>
         </div>
 
@@ -177,9 +157,6 @@ export const StudentPortalView: React.FC<StudentPortalViewProps> = ({
               <div className="py-10 text-center text-slate-400 border border-dashed border-slate-200 rounded-lg">
                 <FileCheck className="w-7 h-7 mx-auto mb-2 text-slate-300" />
                 <p className="font-semibold text-slate-700">No ownership claims filed</p>
-                <p className="text-[11px] text-slate-400 mt-0.5">
-                  Browse the catalog to find your misplaced belongings and click "Claim Item" to submit proof.
-                </p>
               </div>
             ) : (
               <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg overflow-hidden">
@@ -257,7 +234,7 @@ export const StudentPortalView: React.FC<StudentPortalViewProps> = ({
           <div className="p-4 space-y-3">
             {myReports.length === 0 ? (
               <div className="py-10 text-center text-slate-400 border border-dashed border-slate-200 rounded-lg">
-                No items reported yet. Click "Report Lost" or "Surrender Found" to create a report.
+                No reports yet.
               </div>
             ) : (
               <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg overflow-hidden">
@@ -311,9 +288,6 @@ export const StudentPortalView: React.FC<StudentPortalViewProps> = ({
                 <h3 className="font-bold text-slate-900 text-sm">
                   Pateros Technological College Student Credentials
                 </h3>
-                <p className="text-slate-500 text-[11px] mt-0.5">
-                  Connected to Firebase Firestore. Profile photo is formatted as a 500x500 Base64 string.
-                </p>
               </div>
 
               <button
@@ -321,7 +295,7 @@ export const StudentPortalView: React.FC<StudentPortalViewProps> = ({
                 className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <Edit3 className="w-3.5 h-3.5" />
-                <span>Edit Profile & Photo</span>
+                <span>Edit Profile</span>
               </button>
             </div>
 

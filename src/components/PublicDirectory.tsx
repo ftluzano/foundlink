@@ -25,6 +25,8 @@ import { realtimeStore } from '../services/realtimeStore';
 interface PublicDirectoryProps {
   items: ItemRecord[];
   userProfile: UserProfile;
+  onReportFound: (item: ItemRecord, handoffDetails: string) => Promise<void>;
+  onMarkRecovered: (item: ItemRecord) => Promise<void>;
   onSelectItem: (item: ItemRecord) => void;
   onOpenReportModal: (type: ItemType) => void;
   onOpenClaimModal: (item: ItemRecord) => void;
@@ -33,6 +35,8 @@ interface PublicDirectoryProps {
 export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
   items,
   userProfile,
+  onReportFound,
+  onMarkRecovered,
   onSelectItem,
   onOpenReportModal,
   onOpenClaimModal
@@ -44,6 +48,10 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
+  const [recoveryItem, setRecoveryItem] = useState<ItemRecord | null>(null);
+  const [handoffDetails, setHandoffDetails] = useState('');
+  const [handoffError, setHandoffError] = useState('');
+  const [isSubmittingHandoff, setIsSubmittingHandoff] = useState(false);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -89,9 +97,9 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
   }, [items, typeFilter, categoryFilter, locationFilter, statusFilter, searchQuery, sortBy]);
 
   // Counts
-  const totalLost = items.filter((i) => i.type === 'lost' && i.status !== 'Returned').length;
+  const totalLost = items.filter((i) => i.type === 'lost' && i.status !== 'Returned' && i.status !== 'Recovered').length;
   const totalFound = items.filter((i) => i.type === 'found' && i.status !== 'Returned').length;
-  const totalReturned = items.filter((i) => i.status === 'Returned').length;
+  const totalReturned = items.filter((i) => i.status === 'Returned' || i.status === 'Recovered').length;
   const recoveryRate = items.length > 0 ? Math.round((totalReturned / items.length) * 100) : 0;
 
   const hasActiveFilters =
@@ -100,6 +108,32 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
     statusFilter !== 'all' ||
     typeFilter !== 'all' ||
     searchQuery.trim() !== '';
+
+  const openRecoveryForm = (item: ItemRecord) => {
+    setRecoveryItem(item);
+    setHandoffDetails('');
+    setHandoffError('');
+  };
+
+  const handleHandoffSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!recoveryItem || !handoffDetails.trim()) {
+      setHandoffError('Add where the item can be collected or where you can meet.');
+      return;
+    }
+
+    setIsSubmittingHandoff(true);
+    setHandoffError('');
+    try {
+      await onReportFound(recoveryItem, handoffDetails.trim());
+      setRecoveryItem(null);
+      setHandoffDetails('');
+    } catch (error) {
+      setHandoffError(error instanceof Error ? error.message : 'Could not notify the post owner.');
+    } finally {
+      setIsSubmittingHandoff(false);
+    }
+  };
 
   return (
     <div className="space-y-4 pb-12">
@@ -299,6 +333,7 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
               <option value="Potential Match">Potential Match</option>
               <option value="Under Verification">Under Verification</option>
               <option value="Approved">Approved</option>
+              <option value="Recovered">Recovered</option>
               <option value="Returned">Returned</option>
             </select>
 
@@ -345,6 +380,8 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
               key={item.id}
               item={item}
               userProfile={userProfile}
+              onReportFound={() => openRecoveryForm(item)}
+              onMarkRecovered={onMarkRecovered}
               onSelect={() => onSelectItem(item)}
               onClaim={() => onOpenClaimModal(item)}
             />
@@ -408,11 +445,73 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
                         Claim
                       </button>
                     )}
+                    {item.type === 'lost' && item.status !== 'Returned' && item.status !== 'Recovered' && (
+                      <LostPostAction
+                        item={item}
+                        userProfile={userProfile}
+                        onReportFound={() => openRecoveryForm(item)}
+                        onMarkRecovered={onMarkRecovered}
+                      />
+                    )}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {recoveryItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/60 p-4">
+          <div className="my-6 w-full max-w-md overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+              <div>
+                <h2 className="text-sm font-bold text-slate-900">I found this item</h2>
+                <p className="mt-1 text-xs text-slate-500">{recoveryItem.title}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRecoveryItem(null)}
+                aria-label="Close found item report"
+                className="rounded-md p-1 text-slate-500 hover:bg-slate-100"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <form onSubmit={handleHandoffSubmit} className="space-y-4 p-5">
+              <label className="block text-xs font-semibold text-slate-700" htmlFor="handoff-details">
+                Where can the owner collect it or meet you? *
+              </label>
+              <textarea
+                id="handoff-details"
+                required
+                maxLength={1000}
+                rows={4}
+                value={handoffDetails}
+                onChange={(event) => setHandoffDetails(event.target.value)}
+                placeholder="For example: I left it at the library desk. You can meet me by the entrance after 2 PM."
+                className="w-full resize-y rounded-md border border-slate-200 px-3 py-2 text-xs outline-none focus:border-slate-400"
+              />
+              <p className="text-[11px] text-slate-500">This handoff information is sent privately to the person who posted the lost item.</p>
+              {handoffError && <p role="alert" className="text-xs text-rose-700">{handoffError}</p>}
+              <div className="flex justify-end gap-2 border-t border-slate-100 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setRecoveryItem(null)}
+                  className="rounded-md px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!handoffDetails.trim() || isSubmittingHandoff}
+                  className="rounded-md bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isSubmittingHandoff ? 'Sending...' : 'Notify owner'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>
@@ -422,11 +521,13 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
 interface ModernItemCardProps {
   item: ItemRecord;
   userProfile: UserProfile;
+  onReportFound: () => void;
+  onMarkRecovered: (item: ItemRecord) => Promise<void>;
   onSelect: () => void;
   onClaim: () => void;
 }
 
-const ModernItemCard: React.FC<ModernItemCardProps> = ({ item, userProfile, onSelect, onClaim }) => {
+const ModernItemCard: React.FC<ModernItemCardProps> = ({ item, userProfile, onReportFound, onMarkRecovered, onSelect, onClaim }) => {
   const [comments, setComments] = useState<ItemComment[]>([]);
   const [reactions, setReactions] = useState<ItemReaction[]>([]);
   const [commentText, setCommentText] = useState('');
@@ -477,6 +578,7 @@ const ModernItemCard: React.FC<ModernItemCardProps> = ({ item, userProfile, onSe
     'Potential Match': 'bg-blue-50 text-blue-700 border-blue-200/80',
     'Under Verification': 'bg-purple-50 text-purple-700 border-purple-200/80',
     Approved: 'bg-teal-50 text-teal-700 border-teal-200/80',
+    Recovered: 'bg-emerald-50 text-emerald-700 border-emerald-200/80',
     Returned: 'bg-slate-100 text-slate-600 border-slate-200',
     Closed: 'bg-slate-100 text-slate-500 border-slate-200'
   }[item.status] || 'bg-slate-50 text-slate-700 border-slate-200';
@@ -652,22 +754,64 @@ const ModernItemCard: React.FC<ModernItemCardProps> = ({ item, userProfile, onSe
           </button>
         )}
 
-        {item.type === 'lost' && item.status !== 'Returned' && (
-          <button
-            onClick={onSelect}
-            className="px-3 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-md font-semibold shadow-xs transition-colors cursor-pointer"
-          >
-            Match Check
-          </button>
+        {item.type === 'lost' && item.status !== 'Returned' && item.status !== 'Recovered' && (
+          <LostPostAction
+            item={item}
+            userProfile={userProfile}
+            onReportFound={onReportFound}
+            onMarkRecovered={onMarkRecovered}
+          />
         )}
 
-        {item.status === 'Returned' && (
+        {(item.status === 'Returned' || item.status === 'Recovered') && (
           <span className="text-emerald-700 font-medium text-[11px] flex items-center gap-1">
             <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>Returned</span>
+            <span>{item.status === 'Recovered' ? 'Recovered' : 'Returned'}</span>
           </span>
         )}
       </div>
+    </div>
+  );
+};
+
+const LostPostAction: React.FC<{
+  item: ItemRecord;
+  userProfile: UserProfile;
+  onReportFound: () => void;
+  onMarkRecovered: (item: ItemRecord) => Promise<void>;
+}> = ({ item, userProfile, onReportFound, onMarkRecovered }) => {
+  const [error, setError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const isOwner = Boolean(
+    (userProfile.uid && item.reportedBy.uid === userProfile.uid) ||
+    (userProfile.email && item.reportedBy.email?.toLowerCase() === userProfile.email.toLowerCase())
+  );
+
+  const handleRecover = async () => {
+    setIsSaving(true);
+    setError('');
+    try {
+      await onMarkRecovered(item);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not mark this item recovered.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <button
+        type="button"
+        onClick={isOwner ? handleRecover : onReportFound}
+        disabled={isSaving}
+        className={`rounded-md px-3 py-1 text-[11px] font-semibold shadow-xs transition-colors disabled:opacity-50 ${
+          isOwner ? 'bg-emerald-700 text-white hover:bg-emerald-800' : 'bg-slate-900 text-white hover:bg-slate-700'
+        }`}
+      >
+        {isSaving ? 'Saving...' : isOwner ? 'Recover' : 'I Found It'}
+      </button>
+      {error && <span role="alert" className="max-w-40 text-right text-[10px] text-rose-600">{error}</span>}
     </div>
   );
 };

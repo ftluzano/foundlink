@@ -62,9 +62,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // Metrics
   const totalItems = items.length;
-  const lostCount = items.filter((i) => i.type === 'lost' && i.status !== 'Returned').length;
+  const lostCount = items.filter((i) => i.type === 'lost' && i.status !== 'Returned' && i.status !== 'Recovered').length;
   const foundCount = items.filter((i) => i.type === 'found' && i.status !== 'Returned').length;
-  const returnedCount = items.filter((i) => i.status === 'Returned').length;
+  const returnedCount = items.filter((i) => i.status === 'Returned' || i.status === 'Recovered').length;
   const pendingClaimsCount = claims.filter((c) => c.status === 'Under Verification').length;
   const recoveryRate = totalItems > 0 ? Math.round((returnedCount / totalItems) * 100) : 0;
 
@@ -159,10 +159,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <div>
           <div className="flex items-center gap-2 text-xs font-mono text-emerald-400">
             <Shield className="w-3.5 h-3.5" />
-            <span>CUSTODIAN CONSOLE</span>
+            <span>CUSTODIAN</span>
           </div>
           <h1 className="text-lg font-bold tracking-tight text-white mt-0.5">
-            Lost-and-Found Case Administration
+            Case Management
           </h1>
         </div>
 
@@ -206,7 +206,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </span>
         </div>
         <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-xs">
-          <span className="text-slate-500 block text-[11px]">Returned</span>
+          <span className="text-slate-500 block text-[11px]">Recovered / Returned</span>
           <span className="text-xl font-bold font-mono text-blue-600 tabular-nums">
             {returnedCount}
           </span>
@@ -232,7 +232,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             }`}
           >
             <FileCheck className="w-4 h-4" />
-            <span>Claims Queue</span>
+            <span>Claims</span>
             {pendingClaimsCount > 0 && (
               <span className="px-1.5 py-0.2 rounded-full bg-purple-100 text-purple-800 text-[10px] font-bold">
                 {pendingClaimsCount}
@@ -249,7 +249,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             }`}
           >
             <Package className="w-4 h-4" />
-            <span>Custody Inventory</span>
+            <span>Inventory</span>
             <span className="text-slate-400 font-mono">({items.length})</span>
           </button>
 
@@ -274,7 +274,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             }`}
           >
             <History className="w-4 h-4" />
-            <span>Audit Trail</span>
+            <span>Audit</span>
             <span className="text-slate-400 font-mono">({auditLogs.length})</span>
           </button>
         </div>
@@ -551,6 +551,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           <option value="Potential Match">Potential Match</option>
                           <option value="Under Verification">Under Verification</option>
                           <option value="Approved">Approved</option>
+                          <option value="Recovered">Recovered</option>
                           <option value="Returned">Returned</option>
                           <option value="Closed">Closed</option>
                         </select>

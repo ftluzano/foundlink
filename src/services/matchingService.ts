@@ -190,6 +190,7 @@ export function findPotentialMatchesForItem(
     item =>
       item.id !== targetItem.id &&
       item.type === oppositeType &&
+      item.status !== 'Recovered' &&
       item.status !== 'Returned' &&
       item.status !== 'Closed'
   );

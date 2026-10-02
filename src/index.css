@@ -1,5 +1,100 @@
 @import "tailwindcss";
 
+.dark-mode {
+  color-scheme: dark;
+  background-color: #0b1220;
+  color: #e2e8f0;
+}
+
+.dark-mode .bg-white,
+.dark-mode [class~="bg-white/90"] {
+  background-color: #111827 !important;
+}
+
+.dark-mode [class~="bg-slate-50"],
+.dark-mode [class~="bg-slate-50/80"] {
+  background-color: #172033 !important;
+}
+
+.dark-mode [class~="bg-slate-100"],
+.dark-mode [class~="bg-slate-200"] {
+  background-color: #1e293b !important;
+}
+
+.dark-mode [class~="text-slate-900"],
+.dark-mode [class~="text-slate-800"] {
+  color: #f1f5f9 !important;
+}
+
+.dark-mode [class~="text-slate-700"],
+.dark-mode [class~="text-slate-600"] {
+  color: #cbd5e1 !important;
+}
+
+.dark-mode [class~="text-slate-500"],
+.dark-mode [class~="text-slate-400"] {
+  color: #94a3b8 !important;
+}
+
+.dark-mode [class~="border-slate-100"],
+.dark-mode [class~="border-slate-200"],
+.dark-mode [class~="border-slate-300"] {
+  border-color: #334155 !important;
+}
+
+.dark-mode input:not([type="checkbox"]):not([type="radio"]),
+.dark-mode textarea,
+.dark-mode select {
+  background-color: #0f172a;
+  color: #e2e8f0;
+  border-color: #475569;
+}
+
+.dark-mode input::placeholder,
+.dark-mode textarea::placeholder {
+  color: #94a3b8;
+}
+
+.dark-mode [class~="bg-rose-50"],
+.dark-mode [class~="bg-rose-100"] {
+  background-color: #3b1d2b !important;
+}
+
+.dark-mode [class~="text-rose-700"],
+.dark-mode [class~="text-rose-800"] {
+  color: #fda4af !important;
+}
+
+.dark-mode [class~="bg-emerald-50"],
+.dark-mode [class~="bg-emerald-100"] {
+  background-color: #12352e !important;
+}
+
+.dark-mode [class~="text-emerald-700"],
+.dark-mode [class~="text-emerald-800"] {
+  color: #6ee7b7 !important;
+}
+
+.dark-mode [class~="bg-blue-50"],
+.dark-mode [class~="bg-blue-100"] {
+  background-color: #172d4a !important;
+}
+
+.dark-mode [class~="text-blue-700"],
+.dark-mode [class~="text-blue-800"] {
+  color: #93c5fd !important;
+}
+
+.dark-mode [class~="bg-purple-50"],
+.dark-mode [class~="bg-purple-100"] {
+  background-color: #30234a !important;
+}
+
+.dark-mode [class~="text-purple-700"],
+.dark-mode [class~="text-purple-800"] {
+  color: #c4b5fd !important;
+}
+
 @keyframes spin-slow {
   from {
     transform: rotate(0deg);

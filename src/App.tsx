@@ -24,16 +24,10 @@ import { ProfileSettingsModal } from './components/ProfileSettingsModal';
 import { AuthScreen } from './components/AuthScreen';
 import { CheckCircle2 } from 'lucide-react';
 
-const DEFAULT_CUSTODIAN_EMAILS = new Set(['ftluzano@paterostechnologicalcollege.edu.ph']);
+const CUSTODIAN_EMAIL = 'ftluzano@paterostechnologicalcollege.edu.ph';
 
-const resolveUserRole = (profile?: Partial<UserProfile>): 'student' | 'admin' => {
-  const email = (profile?.email || '').trim().toLowerCase();
-
-  if (profile?.role === 'admin') return 'admin';
-  if (DEFAULT_CUSTODIAN_EMAILS.has(email)) return 'admin';
-
-  return 'student';
-};
+const resolveUserRole = (_profile?: Partial<UserProfile>): 'student' | 'admin' =>
+  authService.getCurrentUser()?.email?.trim().toLowerCase() === CUSTODIAN_EMAIL ? 'admin' : 'student';
 
 export default function App() {
   const [items, setItems] = useState<ItemRecord[]>([]);
@@ -62,18 +56,29 @@ export default function App() {
       email: 'ftluzano@paterostechnologicalcollege.edu.ph',
       yearLevel: '3rd Year',
       studentIdNumber: '2023-3TL-0482',
-      role: 'admin',
+      role: 'student',
       photoBase64: ''
     };
   });
 
   // Navigation & Role State
   const [currentTab, setCurrentTab] = useState<'directory' | 'claims' | 'admin' | 'my-reports'>('directory');
-  const [userRole, setUserRole] = useState<'student' | 'admin'>(() => resolveUserRole({ email: 'ftluzano@paterostechnologicalcollege.edu.ph', role: 'admin' }));
+  const [userRole, setUserRole] = useState<'student' | 'admin'>(() => resolveUserRole());
+  const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('foundlink_theme') === 'dark');
 
   useEffect(() => {
     setUserRole(resolveUserRole(userProfile));
   }, [userProfile.email, userProfile.role]);
+
+  useEffect(() => {
+    if (userRole === 'student' && currentTab === 'admin') {
+      setCurrentTab('directory');
+    }
+  }, [userRole, currentTab]);
+
+  useEffect(() => {
+    localStorage.setItem('foundlink_theme', isDarkMode ? 'dark' : 'light');
+  }, [isDarkMode]);
 
   // Modals
   const [reportModalOpen, setReportModalOpen] = useState(false);
@@ -125,17 +130,24 @@ export default function App() {
     const unsubItems = realtimeStore.subscribeItems(setItems);
     const unsubClaims = realtimeStore.subscribeClaims(setClaims);
     const unsubMatches = realtimeStore.subscribeMatches(setMatches);
-    const unsubNotifs = realtimeStore.subscribeNotifications(setNotifications);
     const unsubAudit = realtimeStore.subscribeAuditLogs(setAuditLogs);
 
     return () => {
       unsubItems();
       unsubClaims();
       unsubMatches();
-      unsubNotifs();
       unsubAudit();
     };
   }, []);
+
+  useEffect(() => {
+    const firebaseUid = authService.getCurrentUser()?.uid;
+    if (!firebaseUid) {
+      setNotifications([]);
+      return;
+    }
+    return realtimeStore.subscribeNotifications(firebaseUid, setNotifications);
+  }, [userProfile.uid]);
 
   // Update selected item reference when items update
   useEffect(() => {
@@ -174,14 +186,26 @@ export default function App() {
       // ignore
     }
     setIsAuthenticated(false);
+    setUserRole('student');
     localStorage.removeItem('foundlink_authenticated');
     showToast('Signed out of PTC FoundLink');
   };
 
   // Handlers
   const handleOpenReportModal = (type: ItemType) => {
+    if (type === 'found' && userRole !== 'admin') return;
     setReportModalType(type);
     setReportModalOpen(true);
+  };
+
+  const handleReportLostItemFound = async (item: ItemRecord, handoffDetails: string) => {
+    await realtimeStore.reportLostItemFound(item.id, userProfile.name, handoffDetails);
+    showToast('The person who posted this item has been notified.');
+  };
+
+  const handleMarkItemRecovered = async (item: ItemRecord) => {
+    await realtimeStore.markItemRecovered(item.id);
+    showToast('Your post is now marked as recovered.');
   };
 
   const handleSaveProfile = async (updated: UserProfile) => {
@@ -268,14 +292,15 @@ export default function App() {
 
   // IF AUTHENTICATED: Display full main screen
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col selection:bg-slate-900 selection:text-white">
+    <div className={`app-shell min-h-screen bg-slate-50 text-slate-900 flex flex-col selection:bg-slate-900 selection:text-white ${isDarkMode ? 'dark-mode' : ''}`}>
       {/* 1. Modern Top Navigation Bar */}
       <Navbar
         currentTab={currentTab}
         onSelectTab={setCurrentTab}
         onOpenReportModal={handleOpenReportModal}
         userRole={userRole}
-        onChangeRole={setUserRole}
+        isDarkMode={isDarkMode}
+        onToggleDarkMode={() => setIsDarkMode((dark) => !dark)}
         notifications={notifications}
         onOpenNotifications={() => setNotificationsOpen(true)}
         userProfile={userProfile}
@@ -289,6 +314,8 @@ export default function App() {
           <PublicDirectory
             items={items}
             userProfile={userProfile}
+            onReportFound={handleReportLostItemFound}
+            onMarkRecovered={handleMarkItemRecovered}
             onSelectItem={setSelectedItemForDetails}
             onOpenReportModal={handleOpenReportModal}
             onOpenClaimModal={(foundItem) => setSelectedItemForClaim({ found: foundItem })}
@@ -307,7 +334,7 @@ export default function App() {
           />
         )}
 
-        {currentTab === 'admin' && (
+        {currentTab === 'admin' && userRole === 'admin' && (
           <AdminDashboard
             items={items}
             claims={claims}
@@ -340,6 +367,7 @@ export default function App() {
         <ReportModal
           initialType={reportModalType}
           userProfile={userProfile}
+          canReportFound={userRole === 'admin'}
           onClose={() => setReportModalOpen(false)}
           onSubmit={handleItemCreated}
           onMatchDiscovered={handleMatchDiscovered}

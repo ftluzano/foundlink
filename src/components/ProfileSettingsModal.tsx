@@ -10,10 +10,9 @@ import {
   CheckCircle2,
   Camera,
   Trash2,
-  Upload,
-  Sparkles
+  Upload
 } from 'lucide-react';
-import { UserProfile, UserRole } from '../types';
+import { UserProfile } from '../types';
 import { resizeImageToBase64 } from '../utils/imageUtils';
 import { PTC_COURSE_GROUPS, PTC_COURSES, PTC_YEAR_LEVELS } from '../utils/ptcPrograms';
 
@@ -34,7 +33,6 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
   const [email, setEmail] = useState(profile.email);
   const [yearLevel, setYearLevel] = useState(profile.yearLevel || PTC_YEAR_LEVELS[2]);
   const [studentIdNumber, setStudentIdNumber] = useState(profile.studentIdNumber);
-  const [role, setRole] = useState<UserRole>(profile.role || (profile.email.toLowerCase() === 'ftluzano@paterostechnologicalcollege.edu.ph' ? 'admin' : 'student'));
   const [photoBase64, setPhotoBase64] = useState<string>(profile.photoBase64 || '');
   const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [imageError, setImageError] = useState('');
@@ -77,7 +75,6 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
       email: email.trim(),
       yearLevel,
       studentIdNumber: studentIdNumber.trim(),
-      role,
       photoBase64
     };
     onSaveProfile(updated);
@@ -246,23 +243,6 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
                   <p className="text-[10px] text-rose-600 font-medium">{imageError}</p>
                 )}
               </div>
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <div>
-              <label className="font-semibold text-slate-700 flex items-center gap-1 mb-1">
-                <Sparkles className="w-3.5 h-3.5 text-slate-400" />
-                <span>Account Role</span>
-              </label>
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value as UserRole)}
-                className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg focus:ring-1 focus:ring-slate-900 bg-white text-slate-900 text-xs font-medium"
-              >
-                <option value="student">Student</option>
-                <option value="admin">Custodian</option>
-              </select>
             </div>
           </div>
 

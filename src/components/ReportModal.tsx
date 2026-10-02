@@ -16,6 +16,7 @@ import { resizeImageToBase64 } from '../utils/imageUtils';
 interface ReportModalProps {
   initialType?: ItemType;
   userProfile?: UserProfile;
+  canReportFound: boolean;
   onClose: () => void;
   onSubmit: (item: Omit<ItemRecord, 'id' | 'createdAt' | 'updatedAt'>) => Promise<ItemRecord>;
   onMatchDiscovered: (item: ItemRecord) => void;
@@ -24,11 +25,12 @@ interface ReportModalProps {
 export const ReportModal: React.FC<ReportModalProps> = ({
   initialType = 'lost',
   userProfile,
+  canReportFound,
   onClose,
   onSubmit,
   onMatchDiscovered
 }) => {
-  const [type, setType] = useState<ItemType>(initialType);
+  const [type, setType] = useState<ItemType>(initialType === 'found' && !canReportFound ? 'lost' : initialType);
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<ItemCategory>('Electronics & Gadgets');
   const [brand, setBrand] = useState('');
@@ -80,6 +82,10 @@ export const ReportModal: React.FC<ReportModalProps> = ({
     }
     if (!dateTime || Number.isNaN(new Date(dateTime).getTime())) {
       setValidationError('Please enter a valid date and time.');
+      return;
+    }
+    if (type === 'found' && !canReportFound) {
+      setValidationError('Only a custodian can submit found items to custody.');
       return;
     }
 
@@ -178,7 +184,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
           )}
 
           {/* Type Toggle */}
-          <div className="grid grid-cols-2 gap-2">
+          <div className={`grid ${canReportFound ? 'grid-cols-2' : 'grid-cols-1'} gap-2`}>
             <button
               type="button"
               onClick={() => {
@@ -193,20 +199,22 @@ export const ReportModal: React.FC<ReportModalProps> = ({
             >
               Lost Item Report
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                setType('found');
-                setLocation((current) => current.trim() ? current : CAMPUS_LOCATIONS[1]);
-              }}
-              className={`p-2 rounded-lg border font-semibold text-center transition-colors ${
-                type === 'found'
-                  ? 'border-emerald-600 bg-emerald-50 text-emerald-800'
-                  : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              Found Item (Custody)
-            </button>
+            {canReportFound && (
+              <button
+                type="button"
+                onClick={() => {
+                  setType('found');
+                  setLocation((current) => current.trim() ? current : CAMPUS_LOCATIONS[1]);
+                }}
+                className={`p-2 rounded-lg border font-semibold text-center transition-colors ${
+                  type === 'found'
+                    ? 'border-emerald-600 bg-emerald-50 text-emerald-800'
+                    : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                Found Item (Custody)
+              </button>
+            )}
           </div>
 
           {/* Item Info */}

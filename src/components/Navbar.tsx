@@ -3,12 +3,12 @@ import {
   Bell,
   Plus,
   Shield,
-  Search,
-  FileCheck,
   Package,
   User,
   Settings,
-  LogOut
+  LogOut,
+  Moon,
+  Sun
 } from 'lucide-react';
 import ptcLogo from '../assets/images/ptc.jpg';
 import { NotificationRecord, UserProfile } from '../types';
@@ -18,7 +18,8 @@ interface NavbarProps {
   onSelectTab: (tab: 'directory' | 'claims' | 'admin' | 'my-reports') => void;
   onOpenReportModal: (defaultType: 'lost' | 'found') => void;
   userRole: 'student' | 'admin';
-  onChangeRole: (role: 'student' | 'admin') => void;
+  isDarkMode: boolean;
+  onToggleDarkMode: () => void;
   notifications: NotificationRecord[];
   onOpenNotifications: () => void;
   userProfile: UserProfile;
@@ -31,7 +32,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSelectTab,
   onOpenReportModal,
   userRole,
-  onChangeRole,
+  isDarkMode,
+  onToggleDarkMode,
   notifications,
   onOpenNotifications,
   userProfile,
@@ -144,13 +146,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span>Lost Item</span>
               </button>
 
-              <button
-                onClick={() => onOpenReportModal('found')}
-                className="px-3 py-1.5 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-md transition-colors shadow-xs flex items-center gap-1 cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Found Item</span>
-              </button>
+              {userRole === 'admin' && (
+                <button
+                  onClick={() => onOpenReportModal('found')}
+                  className="px-3 py-1.5 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-md transition-colors shadow-xs flex items-center gap-1 cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Found Item</span>
+                </button>
+              )}
             </div>
 
             {/* Notification Bell */}
@@ -165,6 +169,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
               )}
+            </button>
+
+            <button
+              type="button"
+              onClick={onToggleDarkMode}
+              aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              aria-pressed={isDarkMode}
+              title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              className="rounded-md border border-slate-200 p-1.5 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
+            >
+              {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
 
             {/* User Profile Button */}
@@ -190,27 +205,16 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Settings className="w-3 h-3 text-slate-400 hidden sm:inline" />
             </button>
 
-            {/* Role Status */}
-            <div className="flex items-center bg-slate-100 rounded-md p-0.5 border border-slate-200 text-xs">
-              <span
-                className={`px-2 py-0.5 rounded font-medium ${
-                  userRole === 'student'
-                    ? 'bg-white text-slate-900 shadow-xs font-semibold'
-                    : 'text-slate-500'
-                }`}
-              >
-                Student
-              </span>
-              <span
-                className={`px-2 py-0.5 rounded font-medium ${
-                  userRole === 'admin'
-                    ? 'bg-slate-900 text-white shadow-xs font-semibold'
-                    : 'text-slate-500'
-                }`}
-              >
-                Custodian
-              </span>
-            </div>
+            <span
+              aria-label={`Account role: ${userRole === 'admin' ? 'Custodian' : 'Student'}`}
+              className={`rounded-md border px-2 py-1 text-[11px] font-semibold ${
+                userRole === 'admin'
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                  : 'border-slate-200 bg-slate-50 text-slate-700'
+              }`}
+            >
+              {userRole === 'admin' ? 'Custodian' : 'Student'}
+            </span>
 
             {/* Sign Out Button */}
             <button

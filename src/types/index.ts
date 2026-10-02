@@ -20,6 +20,7 @@ export type ItemStatus =
   | 'Potential Match'
   | 'Under Verification'
   | 'Approved'
+  | 'Recovered'
   | 'Returned'
   | 'Closed';
 
@@ -142,6 +143,7 @@ export type NotificationType =
   | 'status'
   | 'verification'
   | 'handover'
+  | 'recovery'
   | 'system'
   | 'match_alert'
   | 'claim_update'
@@ -155,6 +157,7 @@ export interface NotificationRecord {
   type: NotificationType;
   relatedItemId?: string;
   relatedClaimId?: string;
+  senderUid?: string;
   isRead: boolean;
   createdAt: string;
 }

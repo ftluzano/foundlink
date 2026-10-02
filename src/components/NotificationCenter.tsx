@@ -74,6 +74,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
               const isMatch = n.type === 'match';
               const isClaim = n.type === 'claim';
               const isHandover = n.type === 'handover';
+              const isRecovery = n.type === 'recovery';
 
               return (
                 <div
@@ -97,7 +98,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                         {isMatch && <Sparkles className="w-4 h-4 text-amber-500" />}
                         {isClaim && <FileCheck className="w-4 h-4 text-purple-600" />}
                         {isHandover && <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
-                        {!isMatch && !isClaim && !isHandover && (
+                        {isRecovery && <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
+                        {!isMatch && !isClaim && !isHandover && !isRecovery && (
                           <Clock className="w-4 h-4 text-slate-500" />
                         )}
                       </div>

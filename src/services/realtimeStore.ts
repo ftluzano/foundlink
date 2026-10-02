@@ -6,7 +6,9 @@ import {
   deleteDoc,
   onSnapshot,
   query,
-  orderBy
+  orderBy,
+  where,
+  writeBatch
 } from 'firebase/firestore';
 import { auth, db, firebaseConfig } from './firebase';
 import {
@@ -120,24 +122,7 @@ class RealtimeStore {
         (err) => console.warn('Firestore matches notice:', err.message)
       );
 
-      // 4. Notifications Listener
-      const notifsCol = collection(db, 'notifications');
-      onSnapshot(
-        notifsCol,
-        (snapshot) => {
-          if (!snapshot.empty) {
-            const remoteNotifs: NotificationRecord[] = [];
-            snapshot.forEach((d) => remoteNotifs.push(d.data() as NotificationRecord));
-            remoteNotifs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-            this.notifications = remoteNotifs;
-            this.saveToLocalStorageAndBroadcast(false);
-            this.notifyNotifs();
-          }
-        },
-        (err) => console.warn('Firestore notifications notice:', err.message)
-      );
-
-      // 5. Audit Logs Listener
+      // 4. Audit Logs Listener
       const auditCol = collection(db, 'audit_logs');
       onSnapshot(
         auditCol,
@@ -347,10 +332,87 @@ class RealtimeStore {
     return () => this.matchesListeners.delete(listener);
   }
 
-  subscribeNotifications(listener: Listener<NotificationRecord[]>): () => void {
+  subscribeNotifications(userId: string, listener: Listener<NotificationRecord[]>): () => void {
     this.notifListeners.add(listener);
-    listener([...this.notifications]);
-    return () => this.notifListeners.delete(listener);
+    this.notifications = [];
+    listener([]);
+    const notificationsQuery = query(collection(db, 'notifications'), where('userId', '==', userId));
+    const unsubscribe = onSnapshot(
+      notificationsQuery,
+      (snapshot) => {
+        this.notifications = snapshot.docs
+          .map((notificationDoc) => notificationDoc.data() as NotificationRecord)
+          .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+        this.saveToLocalStorageAndBroadcast(false);
+        this.notifyNotifs();
+      },
+      (error) => console.warn('User notifications sync notice:', error.message)
+    );
+    return () => {
+      unsubscribe();
+      this.notifListeners.delete(listener);
+    };
+  }
+
+  async reportLostItemFound(itemId: string, finderName: string, handoffDetails: string): Promise<void> {
+    const user = auth.currentUser;
+    if (!user) throw new Error('Sign in with your account before reporting a found item.');
+
+    const item = this.items.find((record) => record.id === itemId);
+    if (!item || item.type !== 'lost' || item.status === 'Recovered' || item.status === 'Returned') {
+      throw new Error('This lost-item post is no longer accepting found reports.');
+    }
+    if (!item.reportedBy.uid || item.reportedBy.uid === user.uid) {
+      throw new Error('You can only report finding another user’s lost item.');
+    }
+
+    const details = handoffDetails.trim();
+    if (!details) throw new Error('Enter where the owner can meet you or collect the item.');
+
+    const createdAt = new Date().toISOString();
+    const notificationId = `RECOVERY-${item.id}-${user.uid}`;
+    const notification: NotificationRecord = {
+      id: notificationId,
+      userId: item.reportedBy.uid,
+      senderUid: user.uid,
+      title: 'Someone found your lost item',
+      message: `${finderName} reports finding “${item.title}”. Handoff details: ${details}`,
+      type: 'recovery',
+      relatedItemId: item.id,
+      isRead: false,
+      createdAt
+    };
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'items', item.id, 'recovery_reports', user.uid), {
+      itemId: item.id,
+      itemTitle: item.title,
+      ownerUid: item.reportedBy.uid,
+      finderUid: user.uid,
+      finderName,
+      handoffDetails: details,
+      createdAt
+    });
+    batch.set(doc(db, 'notifications', notificationId), notification);
+    await batch.commit();
+  }
+
+  async markItemRecovered(itemId: string): Promise<void> {
+    const user = auth.currentUser;
+    if (!user) throw new Error('Sign in with your account before marking this item recovered.');
+
+    const item = this.items.find((record) => record.id === itemId);
+    if (!item || item.type !== 'lost' || item.reportedBy.uid !== user.uid) {
+      throw new Error('Only the person who posted this lost item can mark it recovered.');
+    }
+    if (item.status === 'Recovered') return;
+
+    const updatedAt = new Date().toISOString();
+    await updateDoc(doc(db, 'items', itemId), { status: 'Recovered', updatedAt });
+    this.items = this.items.map((record) => record.id === itemId
+      ? { ...record, status: 'Recovered', updatedAt }
+      : record);
+    this.saveToLocalStorageAndBroadcast(true);
+    this.notifyItems();
   }
 
   subscribeAuditLogs(listener: Listener<AuditLogRecord[]>): () => void {

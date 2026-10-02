@@ -12,12 +12,8 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isAuthenticated() && (
-        request.auth.token.admin == true ||
-        request.auth.token.role == 'admin' ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
-      );
+      return isAuthenticated() &&
+        request.auth.token.email == 'ftluzano@paterostechnologicalcollege.edu.ph';
     }
 
     // 1. Users collection: user profiles
@@ -68,6 +64,28 @@ service cloud.firestore {
           && request.resource.data.type in ['like', 'love', 'support'];
         allow delete: if isAuthenticated() && request.auth.uid == userId;
       }
+
+      match /recovery_reports/{finderUid} {
+        allow read: if isAuthenticated() && (
+          request.auth.uid == finderUid ||
+          request.auth.uid == resource.data.ownerUid ||
+          isAdmin()
+        );
+        allow create: if isAuthenticated()
+          && request.auth.uid == finderUid
+          && request.resource.data.finderUid == request.auth.uid
+          && request.resource.data.ownerUid == get(/databases/$(database)/documents/items/$(itemId)).data.reportedBy.uid
+          && request.resource.data.ownerUid != request.auth.uid
+          && get(/databases/$(database)/documents/items/$(itemId)).data.type == 'lost'
+          && request.resource.data.handoffDetails is string
+          && request.resource.data.handoffDetails.size() > 0
+          && request.resource.data.handoffDetails.size() <= 1000;
+        allow update, delete: if false;
+      }
+    }
+
+    match /potential_matches/{matchId} {
+      allow read, create, update, delete: if isAuthenticated();
     }
 
     // 3. Claims collection: item claim requests & verification slips
@@ -102,7 +120,17 @@ service cloud.firestore {
         resource.data.userId == request.auth.uid ||
         isAdmin()
       );
-      allow create: if isAuthenticated();
+      allow create: if isAuthenticated() && (
+        request.resource.data.userId == request.auth.uid ||
+        (
+          request.resource.data.type == 'recovery' &&
+          request.resource.data.senderUid == request.auth.uid &&
+          request.resource.data.relatedItemId is string &&
+          request.resource.data.userId == get(/databases/$(database)/documents/items/$(request.resource.data.relatedItemId)).data.reportedBy.uid &&
+          get(/databases/$(database)/documents/items/$(request.resource.data.relatedItemId)).data.type == 'lost'
+        ) ||
+        isAdmin()
+      );
     }
 
     // 6. Audit Logs collection: chain of custody tracking
@@ -113,9 +141,15 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // Default catch-all for development / testing mode
+    match /audit_logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update, delete: if false;
+    }
+
+    // Deny any collection without an explicit rule above.
     match /{document=**} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if false;
     }
   }
 }
