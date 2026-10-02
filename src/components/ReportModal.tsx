@@ -111,7 +111,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
         photoUrl: photoUrl || null,
         status: type === 'lost' ? 'Lost' : 'Found',
         reportedBy,
-        custodyLocation: type === 'found' ? custodyLocation : undefined
+        ...(type === 'found' ? { custodyLocation } : {})
       });
 
       onMatchDiscovered(created);
