@@ -74,6 +74,14 @@ export const ReportModal: React.FC<ReportModalProps> = ({
       setValidationError('Please provide your name or enable anonymous reporting.');
       return;
     }
+    if (!isAnonymous && reporterEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(reporterEmail.trim())) {
+      setValidationError('Please enter a valid email address.');
+      return;
+    }
+    if (!dateTime || Number.isNaN(new Date(dateTime).getTime())) {
+      setValidationError('Please enter a valid date and time.');
+      return;
+    }
 
     const fullLocation = specificNote.trim() ? `${location} (${specificNote.trim()})` : location;
 
@@ -162,7 +170,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 space-y-4 max-h-[78vh] overflow-y-auto text-xs">
+        <form noValidate onSubmit={handleSubmit} className="p-5 space-y-4 max-h-[78vh] overflow-y-auto text-xs">
           {validationError && (
             <div className="p-2.5 rounded bg-rose-50 border border-rose-200 text-rose-700 font-medium">
               {validationError}
@@ -482,6 +490,11 @@ export const ReportModal: React.FC<ReportModalProps> = ({
           </div>
 
           {/* Actions */}
+          {validationError && (
+            <p role="alert" className="text-right text-[11px] font-medium text-rose-700">
+              {validationError}
+            </p>
+          )}
           <div className="pt-3 border-t border-slate-200 flex justify-end gap-2">
             <button
               type="button"
