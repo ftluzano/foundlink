@@ -9,16 +9,22 @@ import {
   CheckCircle2,
   AlertCircle,
   Clock,
-  Sparkles,
   ArrowUpDown,
   Filter,
-  X
+  X,
+  ThumbsUp,
+  Heart,
+  Sparkles,
+  MessageCircle,
+  Send
 } from 'lucide-react';
-import { ItemRecord, ItemCategory, ItemType, ItemStatus } from '../types';
+import { ItemComment, ItemReaction, ItemReactionType, ItemRecord, ItemType, UserProfile } from '../types';
 import { CAMPUS_LOCATIONS, ITEM_CATEGORIES } from '../services/campusLocations';
+import { realtimeStore } from '../services/realtimeStore';
 
 interface PublicDirectoryProps {
   items: ItemRecord[];
+  userProfile: UserProfile;
   onSelectItem: (item: ItemRecord) => void;
   onOpenReportModal: (type: ItemType) => void;
   onOpenClaimModal: (item: ItemRecord) => void;
@@ -26,6 +32,7 @@ interface PublicDirectoryProps {
 
 export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
   items,
+  userProfile,
   onSelectItem,
   onOpenReportModal,
   onOpenClaimModal
@@ -337,6 +344,7 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
             <ModernItemCard
               key={item.id}
               item={item}
+              userProfile={userProfile}
               onSelect={() => onSelectItem(item)}
               onClaim={() => onOpenClaimModal(item)}
             />
@@ -413,12 +421,55 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
 
 interface ModernItemCardProps {
   item: ItemRecord;
+  userProfile: UserProfile;
   onSelect: () => void;
   onClaim: () => void;
 }
 
-const ModernItemCard: React.FC<ModernItemCardProps> = ({ item, onSelect, onClaim }) => {
+const ModernItemCard: React.FC<ModernItemCardProps> = ({ item, userProfile, onSelect, onClaim }) => {
+  const [comments, setComments] = useState<ItemComment[]>([]);
+  const [reactions, setReactions] = useState<ItemReaction[]>([]);
+  const [commentText, setCommentText] = useState('');
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [socialError, setSocialError] = useState('');
+  const [isSendingComment, setIsSendingComment] = useState(false);
   const isLost = item.type === 'lost';
+
+  useEffect(() => realtimeStore.subscribeItemSocial(item.id, (nextComments, nextReactions) => {
+    setComments(nextComments);
+    setReactions(nextReactions);
+  }), [item.id]);
+
+  const currentReaction = reactions.find((reaction) => reaction.userId === userProfile.uid)?.type;
+  const reactionCounts = reactions.reduce<Record<ItemReactionType, number>>((counts, reaction) => {
+    counts[reaction.type] += 1;
+    return counts;
+  }, { like: 0, love: 0, support: 0 });
+
+  const handleReact = async (type: ItemReactionType) => {
+    setSocialError('');
+    try {
+      await realtimeStore.setItemReaction(item.id, currentReaction === type ? null : type, userProfile.name);
+    } catch (error) {
+      setSocialError(error instanceof Error ? error.message : 'Could not save reaction.');
+    }
+  };
+
+  const handleCommentSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!commentText.trim()) return;
+
+    setIsSendingComment(true);
+    setSocialError('');
+    try {
+      await realtimeStore.createItemComment(item.id, userProfile.name, commentText);
+      setCommentText('');
+    } catch (error) {
+      setSocialError(error instanceof Error ? error.message : 'Could not post comment.');
+    } finally {
+      setIsSendingComment(false);
+    }
+  };
 
   const statusBadgeStyle = {
     Lost: 'bg-rose-50 text-rose-700 border-rose-200/80',
@@ -506,6 +557,79 @@ const ModernItemCard: React.FC<ModernItemCardProps> = ({ item, onSelect, onClaim
           <div className="flex items-center gap-1 text-[10px] font-medium text-emerald-800 bg-emerald-50 px-2 py-1 rounded border border-emerald-100/80">
             <ShieldAlert className="w-3 h-3 text-emerald-600 shrink-0" />
             <span className="truncate">Custody: {item.custodyLocation}</span>
+          </div>
+        )}
+      </div>
+
+      <div className="px-4 py-3 border-t border-slate-100">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => handleReact('like')}
+              aria-pressed={currentReaction === 'like'}
+              className={`inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-[11px] font-semibold transition-colors ${currentReaction === 'like' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-100'}`}
+              title="Like this post"
+            >
+              <ThumbsUp className="h-3.5 w-3.5" /> Like {reactionCounts.like || ''}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleReact('love')}
+              aria-pressed={currentReaction === 'love'}
+              className={`inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-[11px] font-semibold transition-colors ${currentReaction === 'love' ? 'bg-rose-50 text-rose-700' : 'text-slate-600 hover:bg-slate-100'}`}
+              title="Love this post"
+            >
+              <Heart className="h-3.5 w-3.5" /> Love {reactionCounts.love || ''}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleReact('support')}
+              aria-pressed={currentReaction === 'support'}
+              className={`inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-[11px] font-semibold transition-colors ${currentReaction === 'support' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-600 hover:bg-slate-100'}`}
+              title="Show support for this post"
+            >
+              <Sparkles className="h-3.5 w-3.5" /> Support {reactionCounts.support || ''}
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => setCommentsOpen((open) => !open)}
+            className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1.5 text-[11px] font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+          >
+            <MessageCircle className="h-3.5 w-3.5" /> {comments.length} comments
+          </button>
+        </div>
+
+        {socialError && <p role="alert" className="mt-2 text-[11px] text-rose-600">{socialError}</p>}
+
+        {commentsOpen && (
+          <div className="mt-3 space-y-2.5">
+            {comments.map((comment) => (
+              <div key={comment.id} className="rounded-md bg-slate-50 px-3 py-2">
+                <p className="text-[11px] font-semibold text-slate-800">{comment.authorName}</p>
+                <p className="mt-0.5 whitespace-pre-wrap break-words text-xs text-slate-600">{comment.text}</p>
+              </div>
+            ))}
+            <form onSubmit={handleCommentSubmit} className="flex items-center gap-2">
+              <input
+                value={commentText}
+                onChange={(event) => setCommentText(event.target.value)}
+                maxLength={500}
+                placeholder="Write a comment..."
+                aria-label="Write a comment"
+                className="min-w-0 flex-1 rounded-md border border-slate-200 px-3 py-2 text-xs outline-none focus:border-slate-400"
+              />
+              <button
+                type="submit"
+                disabled={!commentText.trim() || isSendingComment}
+                aria-label="Post comment"
+                title="Post comment"
+                className="rounded-md bg-slate-900 p-2 text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Send className="h-3.5 w-3.5" />
+              </button>
+            </form>
           </div>
         )}
       </div>

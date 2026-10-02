@@ -288,6 +288,7 @@ export default function App() {
         {currentTab === 'directory' && (
           <PublicDirectory
             items={items}
+            userProfile={userProfile}
             onSelectItem={setSelectedItemForDetails}
             onOpenReportModal={handleOpenReportModal}
             onOpenClaimModal={(foundItem) => setSelectedItemForClaim({ found: foundItem })}

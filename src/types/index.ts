@@ -66,6 +66,23 @@ export interface ItemRecord {
   updatedAt: string;
 }
 
+export type ItemReactionType = 'like' | 'love' | 'support';
+
+export interface ItemComment {
+  id: string;
+  authorId: string;
+  authorName: string;
+  text: string;
+  createdAt: string;
+}
+
+export interface ItemReaction {
+  userId: string;
+  userName: string;
+  type: ItemReactionType;
+  updatedAt: string;
+}
+
 export type ClaimStatus =
   | 'Under Verification'
   | 'Approved'

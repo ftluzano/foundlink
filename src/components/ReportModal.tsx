@@ -33,7 +33,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
   const [category, setCategory] = useState<ItemCategory>('Electronics & Gadgets');
   const [brand, setBrand] = useState('');
   const [color, setColor] = useState('Black');
-  const [location, setLocation] = useState(CAMPUS_LOCATIONS[1]);
+  const [location, setLocation] = useState(initialType === 'lost' ? '' : CAMPUS_LOCATIONS[1]);
   const [specificNote, setSpecificNote] = useState('');
   const [dateTime, setDateTime] = useState(() => new Date().toISOString().slice(0, 16));
   const [description, setDescription] = useState('');
@@ -64,6 +64,10 @@ export const ReportModal: React.FC<ReportModalProps> = ({
     }
     if (!description.trim()) {
       setValidationError('Please provide a brief description.');
+      return;
+    }
+    if (!location.trim()) {
+      setValidationError(type === 'lost' ? 'Please enter where you lost the item.' : 'Please select a campus area.');
       return;
     }
     if (!isAnonymous && !reporterName.trim()) {
@@ -169,7 +173,10 @@ export const ReportModal: React.FC<ReportModalProps> = ({
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
-              onClick={() => setType('lost')}
+              onClick={() => {
+                setType('lost');
+                setLocation('');
+              }}
               className={`p-2 rounded-lg border font-semibold text-center transition-colors ${
                 type === 'lost'
                   ? 'border-rose-500 bg-rose-50 text-rose-800'
@@ -180,7 +187,10 @@ export const ReportModal: React.FC<ReportModalProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => setType('found')}
+              onClick={() => {
+                setType('found');
+                setLocation((current) => current.trim() ? current : CAMPUS_LOCATIONS[1]);
+              }}
               className={`p-2 rounded-lg border font-semibold text-center transition-colors ${
                 type === 'found'
                   ? 'border-emerald-600 bg-emerald-50 text-emerald-800'
@@ -321,17 +331,29 @@ export const ReportModal: React.FC<ReportModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
                 <label className="block font-medium text-slate-700 mb-1">Campus Area *</label>
-                <select
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  className="w-full px-2.5 py-1.5 border border-slate-200 rounded-md"
-                >
-                  {CAMPUS_LOCATIONS.filter((l) => l !== 'All Campus Locations').map((l) => (
-                    <option key={l} value={l}>
-                      {l}
-                    </option>
-                  ))}
-                </select>
+                {type === 'lost' ? (
+                  <input
+                    type="text"
+                    required
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    placeholder="Type where you lost it (building, floor, room...)"
+                    className="w-full px-2.5 py-1.5 border border-slate-200 rounded-md"
+                  />
+                ) : (
+                  <select
+                    required
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    className="w-full px-2.5 py-1.5 border border-slate-200 rounded-md"
+                  >
+                    {CAMPUS_LOCATIONS.filter((l) => l !== 'All Campus Locations').map((l) => (
+                      <option key={l} value={l}>
+                        {l}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               <div>

@@ -8,9 +8,12 @@ import {
   query,
   orderBy
 } from 'firebase/firestore';
-import { db, firebaseConfig } from './firebase';
+import { auth, db, firebaseConfig } from './firebase';
 import {
   ItemRecord,
+  ItemComment,
+  ItemReaction,
+  ItemReactionType,
   ClaimRecord,
   PotentialMatchRecord,
   NotificationRecord,
@@ -267,6 +270,72 @@ class RealtimeStore {
     this.itemsListeners.add(listener);
     listener([...this.items]);
     return () => this.itemsListeners.delete(listener);
+  }
+
+  subscribeItemSocial(
+    itemId: string,
+    listener: (comments: ItemComment[], reactions: ItemReaction[]) => void
+  ): () => void {
+    let comments: ItemComment[] = [];
+    let reactions: ItemReaction[] = [];
+    const notify = () => listener([...comments], [...reactions]);
+
+    const unsubscribeComments = onSnapshot(
+      collection(db, 'items', itemId, 'comments'),
+      (snapshot) => {
+        comments = snapshot.docs
+          .map((commentDoc) => commentDoc.data() as ItemComment)
+          .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+        notify();
+      },
+      (error) => console.warn('Item comments sync notice:', error.message)
+    );
+    const unsubscribeReactions = onSnapshot(
+      collection(db, 'items', itemId, 'reactions'),
+      (snapshot) => {
+        reactions = snapshot.docs.map((reactionDoc) => reactionDoc.data() as ItemReaction);
+        notify();
+      },
+      (error) => console.warn('Item reactions sync notice:', error.message)
+    );
+
+    return () => {
+      unsubscribeComments();
+      unsubscribeReactions();
+    };
+  }
+
+  async createItemComment(itemId: string, authorName: string, text: string): Promise<void> {
+    const user = auth.currentUser;
+    if (!user) throw new Error('Sign in with your account to comment.');
+
+    const comment: ItemComment = {
+      id: `comment_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+      authorId: user.uid,
+      authorName,
+      text: text.trim(),
+      createdAt: new Date().toISOString()
+    };
+    await setDoc(doc(db, 'items', itemId, 'comments', comment.id), comment);
+  }
+
+  async setItemReaction(itemId: string, type: ItemReactionType | null, userName: string): Promise<void> {
+    const user = auth.currentUser;
+    if (!user) throw new Error('Sign in with your account to react.');
+
+    const reactionRef = doc(db, 'items', itemId, 'reactions', user.uid);
+    if (!type) {
+      await deleteDoc(reactionRef);
+      return;
+    }
+
+    const reaction: ItemReaction = {
+      userId: user.uid,
+      userName,
+      type,
+      updatedAt: new Date().toISOString()
+    };
+    await setDoc(reactionRef, reaction);
   }
 
   subscribeClaims(listener: Listener<ClaimRecord[]>): () => void {
