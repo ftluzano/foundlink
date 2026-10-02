@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ItemRecord,
   ClaimRecord,
@@ -38,6 +38,7 @@ export default function App() {
   const [auditLogs, setAuditLogs] = useState<AuditLogRecord[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<OnlineUserRecord[]>([]);
   const [firebaseUid, setFirebaseUid] = useState(() => authService.getCurrentUser()?.uid || '');
+  const toastedRecoveryIds = useRef(new Set<string>());
 
   // User Authentication Gate
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
@@ -160,13 +161,27 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const firebaseUid = authService.getCurrentUser()?.uid;
     if (!firebaseUid) {
       setNotifications([]);
       return;
     }
-    return realtimeStore.subscribeNotifications(firebaseUid, setNotifications);
-  }, [userProfile.uid]);
+
+    const listeningSince = Date.now();
+    toastedRecoveryIds.current.clear();
+    return realtimeStore.subscribeNotifications(firebaseUid, (userNotifications) => {
+      setNotifications(userNotifications);
+      const newRecovery = userNotifications.find((notification) =>
+        notification.type === 'recovery' &&
+        new Date(notification.createdAt).getTime() >= listeningSince &&
+        !toastedRecoveryIds.current.has(notification.id)
+      );
+      if (newRecovery) {
+        toastedRecoveryIds.current.add(newRecovery.id);
+        setToastMessage(`${newRecovery.title}: ${newRecovery.message}`);
+        window.setTimeout(() => setToastMessage(null), 6000);
+      }
+    });
+  }, [firebaseUid]);
 
   useEffect(() => {
     if (!firebaseUid) return;
