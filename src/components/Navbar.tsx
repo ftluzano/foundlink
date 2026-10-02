@@ -66,7 +66,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </span>
               <div className="flex items-baseline gap-1.5">
                 <span className="text-base font-bold tracking-tight text-slate-900 group-hover:text-slate-700">
-                  PTC FoundLink
+                  FOUNDLINK PTC
                 </span>
                 {userRole === 'admin' && (
                   <span className="text-[10px] font-mono font-semibold px-1.5 py-0.2 bg-slate-900 text-white rounded">

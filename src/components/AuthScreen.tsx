@@ -172,7 +172,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
         </span>
         <div className="text-left">
           <span className="text-lg font-bold tracking-tight text-white block leading-tight">
-            PTC FoundLink
+            FOUNDLINK PTC
           </span>
           <span className="text-[11px] text-slate-400 font-medium">
             Pateros Technological College
