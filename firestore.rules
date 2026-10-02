@@ -52,19 +52,6 @@ service cloud.firestore {
       allow delete: if isOwner(userId);
     }
 
-    match /custodians/{userId} {
-      allow read: if isPrimaryCustodian() || isOwner(userId);
-      allow create, update, delete: if isPrimaryCustodian();
-    }
-
-    match /presence/{userId} {
-      allow read: if isAdmin();
-      allow create, update: if isOwner(userId)
-        && request.resource.data.uid == request.auth.uid
-        && request.resource.data.isOnline is bool;
-      allow delete: if isOwner(userId);
-    }
-
     // 2. Items collection: Lost and Found items catalog
     match /items/{itemId} {
       // Public directory read access for campus community
