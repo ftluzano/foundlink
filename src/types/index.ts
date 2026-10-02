@@ -12,6 +12,14 @@ export interface UserProfile {
   photoBase64?: string;
 }
 
+export interface OnlineUserRecord {
+  uid: string;
+  name: string;
+  email: string;
+  lastSeen: string;
+  isCustodian: boolean;
+}
+
 export type ItemType = 'lost' | 'found';
 
 export type ItemStatus =

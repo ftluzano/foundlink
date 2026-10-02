@@ -11,9 +11,16 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    function isAdmin() {
+    function isPrimaryCustodian() {
       return isAuthenticated() &&
         request.auth.token.email == 'ftluzano@paterostechnologicalcollege.edu.ph';
+    }
+
+    function isAdmin() {
+      return isPrimaryCustodian() || (
+        isAuthenticated() &&
+        exists(/databases/$(database)/documents/custodians/$(request.auth.uid))
+      );
     }
 
     // 1. Users collection: user profiles
@@ -21,8 +28,41 @@ service cloud.firestore {
       // Authenticated users can view profiles for identity verification
       allow read: if isAuthenticated();
       // Users can manage their own profile; admins can manage all
-      allow create, update: if isOwner(userId) || isAdmin();
+      allow create: if isAdmin() || (
+        isOwner(userId) && request.resource.data.role == 'student'
+      );
+      allow update: if isAdmin() || (
+        isOwner(userId) && request.resource.data.role == resource.data.role
+      );
       allow delete: if isAdmin();
+    }
+
+    // Custodian assignments can only be changed by the primary account.
+    match /custodians/{userId} {
+      allow read: if isAdmin() || isOwner(userId);
+      allow create, update, delete: if isPrimaryCustodian();
+    }
+
+    // Each user controls their own short-lived online presence record.
+    match /presence/{userId} {
+      allow read: if isAdmin();
+      allow create, update: if isOwner(userId)
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.isOnline is bool;
+      allow delete: if isOwner(userId);
+    }
+
+    match /custodians/{userId} {
+      allow read: if isPrimaryCustodian() || isOwner(userId);
+      allow create, update, delete: if isPrimaryCustodian();
+    }
+
+    match /presence/{userId} {
+      allow read: if isAdmin();
+      allow create, update: if isOwner(userId)
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.isOnline is bool;
+      allow delete: if isOwner(userId);
     }
 
     // 2. Items collection: Lost and Found items catalog

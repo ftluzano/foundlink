@@ -20,7 +20,8 @@ import {
   PotentialMatchRecord,
   NotificationRecord,
   AuditLogRecord,
-  FirebaseConfigBridge
+  FirebaseConfigBridge,
+  OnlineUserRecord
 } from '../types';
 import { findPotentialMatchesForItem } from './matchingService';
 
@@ -252,6 +253,100 @@ class RealtimeStore {
     this.itemsListeners.add(listener);
     listener([...this.items]);
     return () => this.itemsListeners.delete(listener);
+  }
+
+  subscribeCustodianStatus(userId: string, listener: (isCustodian: boolean) => void): () => void {
+    const primaryEmail = 'ftluzano@paterostechnologicalcollege.edu.ph';
+    if (auth.currentUser?.email?.trim().toLowerCase() === primaryEmail) {
+      listener(true);
+      return () => {};
+    }
+
+    return onSnapshot(
+      doc(db, 'custodians', userId),
+      (snapshot) => listener(snapshot.exists()),
+      (error) => {
+        console.warn('Custodian role sync notice:', error.message);
+        listener(false);
+      }
+    );
+  }
+
+  subscribeOnlineUsers(listener: Listener<OnlineUserRecord[]>): () => void {
+    type PresenceRecord = Omit<OnlineUserRecord, 'isCustodian'> & { isOnline: boolean };
+    let presenceRecords: PresenceRecord[] = [];
+    let custodianIds = new Set<string>();
+
+    const notify = () => {
+      const cutoff = Date.now() - 90_000;
+      listener(presenceRecords
+        .filter((record) => record.isOnline && Date.now() - new Date(record.lastSeen).getTime() < 90_000)
+        .map(({ isOnline: _isOnline, ...record }) => ({
+          ...record,
+          isCustodian: custodianIds.has(record.uid)
+        }))
+        .filter((record) => new Date(record.lastSeen).getTime() >= cutoff)
+        .sort((a, b) => a.name.localeCompare(b.name)));
+    };
+
+    const unsubscribePresence = onSnapshot(
+      query(collection(db, 'presence'), where('isOnline', '==', true)),
+      (snapshot) => {
+        presenceRecords = snapshot.docs.map((presenceDoc) => presenceDoc.data() as PresenceRecord);
+        notify();
+      },
+      (error) => console.warn('Online user presence notice:', error.message)
+    );
+    const unsubscribeCustodians = onSnapshot(
+      collection(db, 'custodians'),
+      (snapshot) => {
+        custodianIds = new Set(snapshot.docs.map((custodianDoc) => custodianDoc.id));
+        notify();
+      },
+      (error) => console.warn('Custodian roster notice:', error.message)
+    );
+    const refreshTimer = window.setInterval(notify, 30_000);
+
+    return () => {
+      window.clearInterval(refreshTimer);
+      unsubscribePresence();
+      unsubscribeCustodians();
+    };
+  }
+
+  async updatePresence(name: string, isOnline: boolean): Promise<void> {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    await setDoc(doc(db, 'presence', user.uid), {
+      uid: user.uid,
+      name: name.trim() || user.displayName || user.email || 'Campus member',
+      email: user.email || '',
+      isOnline,
+      lastSeen: new Date().toISOString()
+    }, { merge: true });
+  }
+
+  async setCustodian(userId: string, name: string, email: string, isCustodian: boolean): Promise<void> {
+    const user = auth.currentUser;
+    const primaryEmail = 'ftluzano@paterostechnologicalcollege.edu.ph';
+    if (user?.email?.trim().toLowerCase() !== primaryEmail) {
+      throw new Error('Only the primary Custodian can assign Custodian access.');
+    }
+    if (userId === user.uid) throw new Error('Your primary Custodian access cannot be removed here.');
+
+    const custodianRef = doc(db, 'custodians', userId);
+    if (isCustodian) {
+      await setDoc(custodianRef, {
+        uid: userId,
+        name,
+        email,
+        assignedBy: user.uid,
+        assignedAt: new Date().toISOString()
+      });
+    } else {
+      await deleteDoc(custodianRef);
+    }
   }
 
   subscribeItemSocial(

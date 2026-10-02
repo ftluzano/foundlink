@@ -292,11 +292,11 @@ export const authService = {
    */
   async saveUserProfile(uid: string, profile: UserProfile): Promise<void> {
     try {
+      const { role: _role, ...profileFields } = profile;
       await setDoc(
         doc(db, 'users', uid),
         {
-          ...profile,
-          role: resolveUserRole(auth.currentUser?.email || ''),
+          ...profileFields,
           updatedAt: new Date().toISOString()
         },
         { merge: true }

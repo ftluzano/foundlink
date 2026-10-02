@@ -12,21 +12,30 @@ import {
   Sparkles,
   MapPin,
   TrendingUp,
-  Database
+  Database,
+  Users,
+  UserPlus,
+  UserMinus
 } from 'lucide-react';
 import {
   ItemRecord,
   ClaimRecord,
   PotentialMatchRecord,
-  AuditLogRecord
+  AuditLogRecord,
+  OnlineUserRecord
 } from '../types';
 import { CUSTODY_LOCATIONS } from '../services/campusLocations';
+
+const PRIMARY_CUSTODIAN_EMAIL = 'ftluzano@paterostechnologicalcollege.edu.ph';
 
 interface AdminDashboardProps {
   items: ItemRecord[];
   claims: ClaimRecord[];
   matches: PotentialMatchRecord[];
   auditLogs: AuditLogRecord[];
+  onlineUsers: OnlineUserRecord[];
+  canManageCustodians: boolean;
+  onSetCustodian: (user: OnlineUserRecord, isCustodian: boolean) => Promise<void>;
   onUpdateClaim: (
     claimId: string,
     updates: Partial<ClaimRecord>,
@@ -45,6 +54,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   claims,
   matches,
   auditLogs,
+  onlineUsers,
+  canManageCustodians,
+  onSetCustodian,
   onUpdateClaim,
   onUpdateItemStatus,
   onUpdateCustody,
@@ -53,9 +65,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onClearAllData,
   onOpenFirebaseModal
 }) => {
-  const [activeTab, setActiveTab] = useState<'claims' | 'inventory' | 'analytics' | 'audit'>('claims');
+  const [activeTab, setActiveTab] = useState<'claims' | 'inventory' | 'analytics' | 'audit' | 'users'>('claims');
   const [claimFilter, setClaimFilter] = useState<'all' | 'Under Verification' | 'Approved' | 'Returned' | 'Rejected'>('all');
   const [inventorySearch, setInventorySearch] = useState('');
+  const [custodianError, setCustodianError] = useState('');
+  const [updatingCustodianId, setUpdatingCustodianId] = useState('');
   const [selectedClaimForReview, setSelectedClaimForReview] = useState<ClaimRecord | null>(null);
   const [reviewNotes, setReviewNotes] = useState('');
   const [pickupSlot, setPickupSlot] = useState('Campus Security Custody Office, Gate 1');
@@ -149,6 +163,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         'Officer Dela Cruz'
       );
       setSelectedClaimForReview(null);
+    }
+  };
+
+  const handleSetCustodian = async (user: OnlineUserRecord) => {
+    setCustodianError('');
+    setUpdatingCustodianId(user.uid);
+    try {
+      await onSetCustodian(user, !user.isCustodian);
+    } catch (error) {
+      setCustodianError(error instanceof Error ? error.message : 'Could not update Custodian access.');
+    } finally {
+      setUpdatingCustodianId('');
     }
   };
 
@@ -276,6 +302,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <History className="w-4 h-4" />
             <span>Audit</span>
             <span className="text-slate-400 font-mono">({auditLogs.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`py-3 border-b-2 flex items-center gap-1.5 transition-colors whitespace-nowrap ${
+              activeTab === 'users'
+                ? 'border-slate-900 text-slate-900'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            <span>Online Users</span>
+            <span className="text-slate-400 font-mono">({onlineUsers.length})</span>
           </button>
         </div>
 
@@ -678,6 +717,52 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 ))
               )}
             </div>
+          </div>
+        )}
+
+        {activeTab === 'users' && (
+          <div className="p-4 space-y-3 text-xs">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="font-semibold text-slate-900">Online now</h2>
+              <span className="text-slate-500">{onlineUsers.length} active</span>
+            </div>
+            {custodianError && <p role="alert" className="text-rose-700">{custodianError}</p>}
+            {onlineUsers.length === 0 ? (
+              <div className="rounded-md border border-dashed border-slate-300 px-4 py-10 text-center text-slate-500">
+                No users are online right now.
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100 rounded-md border border-slate-200">
+                {onlineUsers.map((user) => (
+                  <div key={user.uid} className="flex flex-wrap items-center justify-between gap-3 px-3 py-2.5">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                        <span className="truncate font-semibold text-slate-900">{user.name}</span>
+                        <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${user.isCustodian ? 'bg-emerald-50 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>
+                          {user.isCustodian ? 'Custodian' : 'Student'}
+                        </span>
+                      </div>
+                      <p className="mt-0.5 truncate pl-4 text-[11px] text-slate-500">{user.email}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-[10px] text-slate-400">Active {new Date(user.lastSeen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      {canManageCustodians && user.email.trim().toLowerCase() !== PRIMARY_CUSTODIAN_EMAIL && (
+                        <button
+                          type="button"
+                          onClick={() => void handleSetCustodian(user)}
+                          disabled={updatingCustodianId === user.uid}
+                          className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 font-semibold disabled:opacity-50 ${user.isCustodian ? 'border border-slate-200 text-slate-600 hover:bg-slate-100' : 'bg-slate-900 text-white hover:bg-slate-700'}`}
+                        >
+                          {user.isCustodian ? <UserMinus className="h-3.5 w-3.5" /> : <UserPlus className="h-3.5 w-3.5" />}
+                          {updatingCustodianId === user.uid ? 'Saving...' : user.isCustodian ? 'Remove' : 'Make Custodian'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

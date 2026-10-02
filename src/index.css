@@ -1,5 +1,70 @@
 @import "tailwindcss";
 
+.app-shell {
+  position: relative;
+  isolation: isolate;
+  background-color: transparent !important;
+}
+
+.app-shell::before,
+.app-shell::after {
+  content: "";
+  position: fixed;
+  inset: 3.5rem 0 0;
+  pointer-events: none;
+}
+
+.app-shell::before {
+  z-index: -2;
+  background-image:
+    linear-gradient(rgba(248, 250, 252, 0.84), rgba(241, 245, 249, 0.88)),
+    url("./assets/images/ptc_campus_aerial_1790923945257.jpg");
+  background-position: center, center 42%;
+  background-size: cover;
+}
+
+.app-shell::after {
+  z-index: -1;
+  opacity: 0.3;
+  background-image:
+    linear-gradient(118deg, transparent 24%, rgba(255, 248, 222, 0.2) 42%, transparent 60%),
+    repeating-linear-gradient(128deg, transparent 0 128px, rgba(19, 33, 24, 0.09) 151px 184px, transparent 206px 320px);
+  background-size: 180% 180%, 170% 170%;
+  animation: campus-canopy-drift 38s ease-in-out infinite alternate;
+}
+
+.dark-mode.app-shell {
+  background-color: #0b1220 !important;
+}
+
+.dark-mode.app-shell::before {
+  background-image:
+    linear-gradient(rgba(7, 14, 24, 0.86), rgba(8, 16, 25, 0.9)),
+    url("./assets/images/ptc_campus_aerial_1790923945257.jpg");
+}
+
+.dark-mode.app-shell::after {
+  opacity: 0.16;
+  mix-blend-mode: screen;
+}
+
+@keyframes campus-canopy-drift {
+  from {
+    transform: translate3d(-1.5%, -0.6%, 0) scale(1.04);
+    background-position: 0% 50%, 0% 50%;
+  }
+  to {
+    transform: translate3d(1.5%, 0.8%, 0) scale(1.04);
+    background-position: 100% 50%, 100% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell::after {
+    animation: none;
+  }
+}
+
 .dark-mode {
   color-scheme: dark;
   background-color: #0b1220;

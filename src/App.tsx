@@ -6,7 +6,8 @@ import {
   NotificationRecord,
   AuditLogRecord,
   ItemType,
-  UserProfile
+  UserProfile,
+  OnlineUserRecord
 } from './types';
 import { realtimeStore } from './services/realtimeStore';
 import { authService } from './services/authService';
@@ -35,6 +36,8 @@ export default function App() {
   const [matches, setMatches] = useState<PotentialMatchRecord[]>([]);
   const [notifications, setNotifications] = useState<NotificationRecord[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogRecord[]>([]);
+  const [onlineUsers, setOnlineUsers] = useState<OnlineUserRecord[]>([]);
+  const [firebaseUid, setFirebaseUid] = useState(() => authService.getCurrentUser()?.uid || '');
 
   // User Authentication Gate
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
@@ -67,8 +70,21 @@ export default function App() {
   const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('foundlink_theme') === 'dark');
 
   useEffect(() => {
-    setUserRole(resolveUserRole(userProfile));
-  }, [userProfile.email, userProfile.role]);
+    const firebaseUser = authService.getCurrentUser();
+    if (!firebaseUser || firebaseUser.uid !== firebaseUid) {
+      setUserRole('student');
+      return;
+    }
+
+    if (firebaseUser.email?.trim().toLowerCase() === CUSTODIAN_EMAIL) {
+      setUserRole('admin');
+      return;
+    }
+
+    return realtimeStore.subscribeCustodianStatus(firebaseUser.uid, (isCustodian) => {
+      setUserRole(isCustodian ? 'admin' : 'student');
+    });
+  }, [firebaseUid]);
 
   useEffect(() => {
     if (userRole === 'student' && currentTab === 'admin') {
@@ -105,6 +121,7 @@ export default function App() {
   useEffect(() => {
     const unsubAuth = authService.subscribeAuth(async (firebaseUser) => {
       if (firebaseUser) {
+        setFirebaseUid(firebaseUser.uid);
         setIsAuthenticated(true);
         localStorage.setItem('foundlink_authenticated', 'true');
 
@@ -119,6 +136,8 @@ export default function App() {
           }
         );
         return () => unsubProfile();
+      } else {
+        setFirebaseUid('');
       }
     });
 
@@ -148,6 +167,36 @@ export default function App() {
     }
     return realtimeStore.subscribeNotifications(firebaseUid, setNotifications);
   }, [userProfile.uid]);
+
+  useEffect(() => {
+    if (!firebaseUid) return;
+
+    const refreshPresence = () => {
+      void realtimeStore.updatePresence(userProfile.name, true).catch((error) => {
+        console.warn('Presence update notice:', error);
+      });
+    };
+    const markOffline = () => {
+      void realtimeStore.updatePresence(userProfile.name, false).catch(() => {});
+    };
+
+    refreshPresence();
+    const heartbeat = window.setInterval(refreshPresence, 30_000);
+    window.addEventListener('pagehide', markOffline);
+    return () => {
+      window.clearInterval(heartbeat);
+      window.removeEventListener('pagehide', markOffline);
+      markOffline();
+    };
+  }, [firebaseUid, userProfile.name]);
+
+  useEffect(() => {
+    if (userRole !== 'admin') {
+      setOnlineUsers([]);
+      return;
+    }
+    return realtimeStore.subscribeOnlineUsers(setOnlineUsers);
+  }, [userRole]);
 
   // Update selected item reference when items update
   useEffect(() => {
@@ -180,6 +229,7 @@ export default function App() {
   };
 
   const handleSignOut = async () => {
+    await realtimeStore.updatePresence(userProfile.name, false).catch(() => {});
     try {
       await authService.logout();
     } catch {
@@ -208,6 +258,11 @@ export default function App() {
     showToast('Your post is now marked as recovered.');
   };
 
+  const handleSetCustodian = async (onlineUser: OnlineUserRecord, isCustodian: boolean) => {
+    await realtimeStore.setCustodian(onlineUser.uid, onlineUser.name, onlineUser.email, isCustodian);
+    showToast(isCustodian ? `${onlineUser.name} is now a Custodian.` : `Custodian access removed for ${onlineUser.name}.`);
+  };
+
   const handleSaveProfile = async (updated: UserProfile) => {
     const normalizedProfile: UserProfile = {
       ...updated,
@@ -216,7 +271,6 @@ export default function App() {
     };
 
     setUserProfile(normalizedProfile);
-    setUserRole(resolveUserRole(normalizedProfile));
     try {
       localStorage.setItem('foundlink_user_profile', JSON.stringify(normalizedProfile));
     } catch {
@@ -340,6 +394,9 @@ export default function App() {
             claims={claims}
             matches={matches}
             auditLogs={auditLogs}
+            onlineUsers={onlineUsers}
+            canManageCustodians={authService.getCurrentUser()?.email?.trim().toLowerCase() === CUSTODIAN_EMAIL}
+            onSetCustodian={handleSetCustodian}
             onUpdateClaim={handleUpdateClaim}
             onUpdateItemStatus={handleUpdateStatus}
             onUpdateCustody={handleUpdateCustody}
