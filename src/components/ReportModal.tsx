@@ -109,7 +109,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
       onMatchDiscovered(created);
       onClose();
     } catch (err) {
-      setValidationError('Failed to save record. Please check inputs.');
+      setValidationError(err instanceof Error ? err.message : 'Failed to save record. Please check inputs.');
     } finally {
       setIsSubmitting(false);
     }

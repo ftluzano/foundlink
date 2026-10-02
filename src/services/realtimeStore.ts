@@ -71,15 +71,12 @@ class RealtimeStore {
         (snapshot) => {
           this.isFirestoreConnected = true;
           this.firestoreStatusMessage = 'Connected to Firebase Firestore';
-          if (!snapshot.empty) {
-            const remoteItems: ItemRecord[] = [];
-            snapshot.forEach((d) => remoteItems.push(d.data() as ItemRecord));
-            // Sort newest first
-            remoteItems.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-            this.items = remoteItems;
-            this.saveToLocalStorageAndBroadcast(false);
-            this.notifyItems();
-          }
+          const remoteItems: ItemRecord[] = [];
+          snapshot.forEach((d) => remoteItems.push(d.data() as ItemRecord));
+          remoteItems.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          this.items = remoteItems;
+          this.saveToLocalStorageAndBroadcast(false);
+          this.notifyItems();
         },
         (error) => {
           console.warn('Firestore items sync notice:', error.message);
@@ -364,16 +361,29 @@ class RealtimeStore {
 
   // ---------------- ACTIONS (Instant update + Firestore setDoc) ----------------
   async createItem(itemData: Omit<ItemRecord, 'id' | 'createdAt' | 'updatedAt'>): Promise<ItemRecord> {
+    const firebaseUser = auth.currentUser;
+    if (!firebaseUser) {
+      throw new Error('Your session is not connected to Firebase. Sign in again before publishing a report.');
+    }
+
     const now = new Date().toISOString();
     const newItem: ItemRecord = {
       ...itemData,
+      reportedBy: { ...itemData.reportedBy, uid: firebaseUser.uid },
       id: `FL-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 900 + 100)}`,
       createdAt: now,
       updatedAt: now
     };
 
+    try {
+      await setDoc(doc(db, 'items', newItem.id), newItem);
+    } catch (err) {
+      console.warn('Firestore publish item error:', err);
+      throw new Error('Could not publish this report to the shared directory. Please sign in again and retry.');
+    }
+
     // Instant local optimistic update
-    this.items.unshift(newItem);
+    this.items = [newItem, ...this.items.filter((item) => item.id !== newItem.id)];
 
     // Audit log
     this.logAudit({
