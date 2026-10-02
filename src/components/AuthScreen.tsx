@@ -11,6 +11,7 @@ import {
   Eye,
   EyeOff
 } from 'lucide-react';
+import ptcLogo from '../assets/images/ptc.jpg';
 import { authService } from '../services/authService';
 import { UserProfile } from '../types';
 import { RotatingPlaceBackground } from './RotatingPlaceBackground';
@@ -163,9 +164,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
 
       {/* Brand Header */}
       <div className="relative z-10 flex items-center gap-2.5 mb-5 text-center">
-        <div className="w-9 h-9 rounded-xl bg-white text-slate-950 flex items-center justify-center font-extrabold text-sm shadow-md">
-          PTC
-        </div>
+        <img
+          src={ptcLogo}
+          alt="PTC FoundLink logo"
+          className="w-9 h-9 rounded-xl object-cover border border-white/40 shadow-md"
+        />
         <div className="text-left">
           <span className="text-lg font-bold tracking-tight text-white block leading-tight">
             PTC FoundLink

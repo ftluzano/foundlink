@@ -10,6 +10,7 @@ import {
   Settings,
   LogOut
 } from 'lucide-react';
+import ptcLogo from '../assets/images/ptc.jpg';
 import { NotificationRecord, UserProfile } from '../types';
 
 interface NavbarProps {
@@ -58,9 +59,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => onSelectTab(userRole === 'admin' ? 'admin' : 'directory')}
               className="flex items-center gap-2 group text-left cursor-pointer focus:outline-hidden"
             >
-              <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center text-white font-bold text-xs tracking-tight shadow-xs group-hover:bg-slate-800 transition-colors">
-                PTC
-              </div>
+              <img
+                src={ptcLogo}
+                alt="PTC FoundLink logo"
+                className="w-8 h-8 rounded-lg object-cover border border-slate-200 shadow-sm group-hover:opacity-90 transition-opacity"
+              />
               <div className="flex items-baseline gap-1.5">
                 <span className="text-base font-bold tracking-tight text-slate-900 group-hover:text-slate-700">
                   PTC FoundLink
