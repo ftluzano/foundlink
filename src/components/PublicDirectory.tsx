@@ -606,14 +606,18 @@ const ModernItemCard: React.FC<ModernItemCardProps> = ({ item, userProfile, onRe
           <div className="flex items-center gap-1.5">
             <span
               className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
-                isLost ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'
+                item.status === 'Recovered' || !isLost
+                  ? 'bg-emerald-100 text-emerald-800'
+                  : 'bg-rose-100 text-rose-800'
               }`}
             >
-              {isLost ? 'Lost' : 'Found'}
+              {item.status === 'Recovered' ? 'Recovered' : isLost ? 'Lost' : 'Found'}
             </span>
-            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${statusBadgeStyle}`}>
-              {item.status}
-            </span>
+            {item.status !== 'Recovered' && (
+              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${statusBadgeStyle}`}>
+                {item.status}
+              </span>
+            )}
           </div>
 
           <span className="text-[10px] font-mono text-slate-400">{item.id}</span>

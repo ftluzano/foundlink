@@ -187,10 +187,10 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
             </div>
           )}
 
-          {/* 500x500 Base64 Photo Upload Section */}
+          {/* Profile Photo */}
           <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
             <span className="font-semibold text-slate-800 block text-xs">
-              Profile Photo (Base64 500x500 for Firebase)
+              Profile Photo
             </span>
 
             <div className="flex items-center gap-3">
@@ -236,9 +236,6 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
                   )}
                 </div>
 
-                <p className="text-[10px] text-slate-500">
-                  Images are automatically center-cropped and formatted to 500×500 Base64 for Firestore storage.
-                </p>
                 {imageError && (
                   <p className="text-[10px] text-rose-600 font-medium">{imageError}</p>
                 )}
