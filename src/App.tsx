@@ -378,7 +378,7 @@ export default function App() {
       />
 
       {/* 2. Main Workspace Viewport */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 pt-5">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 pt-3 sm:pt-5">
         {currentTab === 'directory' && (
           <PublicDirectory
             items={items}

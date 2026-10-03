@@ -161,27 +161,27 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-4 selection:bg-slate-800 selection:text-white relative overflow-hidden">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-3 sm:p-4 selection:bg-slate-800 selection:text-white relative overflow-hidden">
       {/* 60FPS Efficient Rotating Campus Globe & Location System */}
       <RotatingPlaceBackground />
 
       {/* Brand Header */}
-      <div className="relative z-10 flex items-center gap-2.75 mb-5 text-center">
-        <span className="brand-mark brand-mark--auth" aria-hidden="true">
+      <div className="relative z-10 flex items-center justify-center gap-2.5 sm:gap-2.75 mb-3 sm:mb-5 text-center">
+        <span className="brand-mark brand-mark--auth scale-[0.94] sm:scale-100" aria-hidden="true">
           <img src={ptcLogo} alt="" className="h-full w-full rounded-full object-cover" />
         </span>
         <div className="text-left">
-          <span className="text-lg font-bold tracking-tight text-white block leading-tight">
+          <span className="text-base sm:text-lg font-bold tracking-tight text-white block leading-tight">
             FOUNDLINK PTC
           </span>
-          <span className="text-[11px] text-slate-400 font-medium">
+          <span className="text-[10px] sm:text-[11px] text-slate-400 font-medium">
             Pateros Technological College
           </span>
         </div>
       </div>
 
       {/* Auth Card */}
-      <div className="relative z-10 bg-white text-slate-900 rounded-2xl shadow-2xl border border-slate-200/90 w-full max-w-[28rem] overflow-hidden text-xs">
+      <div className="relative z-10 bg-white text-slate-900 rounded-2xl shadow-2xl border border-slate-200/90 w-full max-w-[min(28rem,calc(100vw-1.25rem))] min-w-0 overflow-hidden text-xs">
         {/* Tab Switcher */}
         {mode !== 'forgot' ? (
           <div className="p-1.5 bg-slate-100 border-b border-slate-200 grid grid-cols-2 gap-1 font-semibold text-xs">
@@ -234,7 +234,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
         )}
 
         {/* Card Body */}
-        <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
+        <div className="p-4 sm:p-5 space-y-4 max-h-[75vh] overflow-y-auto">
           {errorMsg && (
             <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 font-medium flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />

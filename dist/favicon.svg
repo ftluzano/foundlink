@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <circle cx="32" cy="32" r="31" fill="#08784d"/>
+  <circle cx="32" cy="32" r="26.5" fill="#fff" stroke="#d5b354" stroke-width="2"/>
+  <circle cx="32" cy="25" r="11" fill="#08784d"/>
+  <path d="M27 27v-5h2v5m2 0v-5h2v5m2 0v-5h2v5M25 29h14" fill="none" stroke="#fff" stroke-linecap="round" stroke-width="1.5"/>
+  <text x="32" y="46" fill="#153b2b" font-family="Georgia,serif" font-size="9" font-weight="700" text-anchor="middle">PTC</text>
+</svg>

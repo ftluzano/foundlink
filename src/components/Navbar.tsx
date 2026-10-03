@@ -53,23 +53,23 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200/80">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="flex items-center justify-between h-14">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6">
+        <div className="flex flex-col gap-2 py-2 sm:flex-row sm:items-center sm:justify-between sm:h-14 sm:py-0">
           {/* Brand */}
-          <div className="flex items-center gap-6">
+          <div className="flex items-center justify-between gap-3 sm:gap-6 min-w-0">
             <button
               onClick={() => onSelectTab(userRole === 'admin' ? 'admin' : 'directory')}
-              className="flex items-center gap-2 group text-left cursor-pointer focus:outline-hidden"
+              className="flex min-w-0 items-center gap-2 group text-left cursor-pointer focus:outline-hidden"
             >
-              <span className="brand-mark brand-mark--nav" aria-hidden="true">
+              <span className="brand-mark brand-mark--nav shrink-0" aria-hidden="true">
                 <img src={ptcLogo} alt="" className="h-full w-full rounded-full object-cover" />
               </span>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-base font-bold tracking-tight text-slate-900 group-hover:text-slate-700">
+              <div className="flex min-w-0 items-baseline gap-1.5">
+                <span className="text-sm sm:text-base font-bold tracking-tight text-slate-900 group-hover:text-slate-700 truncate">
                   FOUNDLINK PTC
                 </span>
                 {userRole === 'admin' && (
-                  <span className="text-[10px] font-mono font-semibold px-1.5 py-0.2 bg-slate-900 text-white rounded">
+                  <span className="hidden sm:inline text-[10px] font-mono font-semibold px-1.5 py-0.2 bg-slate-900 text-white rounded">
                     OFFICER
                   </span>
                 )}
@@ -77,7 +77,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
 
             {/* Role-Specific Navigation Tabs */}
-            <nav className="hidden md:flex items-center gap-1 text-xs font-semibold">
+            <nav className="hidden md:flex items-center gap-1 text-xs font-semibold shrink-0">
               {userRole === 'student' ? (
                 <>
                   <button
@@ -133,24 +133,26 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Right Controls */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-1.5 sm:gap-2 min-w-0">
             {/* Quick Action Buttons */}
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 min-w-0">
               <button
                 onClick={() => onOpenReportModal('lost')}
-                className="px-3 py-1.5 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100/80 border border-rose-200/80 rounded-md transition-colors flex items-center gap-1 cursor-pointer"
+                className="px-2.5 py-1.5 sm:px-3 text-[10px] sm:text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100/80 border border-rose-200/80 rounded-md transition-colors flex items-center gap-1 cursor-pointer shrink-0"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>Lost Item</span>
+                <span className="hidden sm:inline">Lost Item</span>
+                <span className="sm:hidden">Lost</span>
               </button>
 
               {userRole === 'admin' && (
                 <button
                   onClick={() => onOpenReportModal('found')}
-                  className="px-3 py-1.5 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-md transition-colors shadow-xs flex items-center gap-1 cursor-pointer"
+                  className="px-2.5 py-1.5 sm:px-3 text-[10px] sm:text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-md transition-colors shadow-xs flex items-center gap-1 cursor-pointer shrink-0"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>Found Item</span>
+                  <span className="hidden sm:inline">Found Item</span>
+                  <span className="sm:hidden">Found</span>
                 </button>
               )}
             </div>
@@ -158,7 +160,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Notification Bell */}
             <button
               onClick={onOpenNotifications}
-              className="relative p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors cursor-pointer"
+              className="relative p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors cursor-pointer shrink-0"
               title="Notifications"
             >
               <Bell className="w-4 h-4" />
@@ -175,7 +177,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
               aria-pressed={isDarkMode}
               title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-              className="rounded-md border border-slate-200 p-1.5 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
+              className="rounded-md border border-slate-200 p-1.5 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 shrink-0"
             >
               {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
@@ -183,7 +185,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* User Profile Button */}
             <button
               onClick={onOpenProfileModal}
-              className="flex items-center gap-1.5 p-1 sm:px-2.5 sm:py-1 rounded-md text-slate-700 hover:bg-slate-100 border border-slate-200 text-xs font-medium transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 p-1 sm:px-2.5 sm:py-1 rounded-md text-slate-700 hover:bg-slate-100 border border-slate-200 text-xs font-medium transition-colors cursor-pointer shrink-0"
               title="Student Profile & Settings"
             >
               <div className="w-5 h-5 rounded-full overflow-hidden bg-slate-900 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
@@ -205,7 +207,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             <span
               aria-label={`Account role: ${userRole === 'admin' ? 'Custodian' : 'Student'}`}
-              className={`rounded-md border px-2 py-1 text-[11px] font-semibold ${
+              className={`hidden sm:inline rounded-md border px-2 py-1 text-[11px] font-semibold ${
                 userRole === 'admin'
                   ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
                   : 'border-slate-200 bg-slate-50 text-slate-700'
@@ -217,7 +219,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Sign Out Button */}
             <button
               onClick={onSignOut}
-              className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-md border border-transparent hover:border-rose-200 transition-colors cursor-pointer"
+              className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-md border border-transparent hover:border-rose-200 transition-colors cursor-pointer shrink-0"
               title="Sign Out of Account"
             >
               <LogOut className="w-3.5 h-3.5" />
