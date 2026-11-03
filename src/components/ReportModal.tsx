@@ -156,7 +156,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
     <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
       <div className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-xl w-full my-6 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
         {/* Header */}
-        <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-900 text-white">
+        <div className="flex items-center justify-between border-b border-emerald-950/20 bg-[#174a32] px-5 py-3.5 text-white">
           <div className="flex items-center gap-2">
             {type === 'lost' ? (
               <AlertCircle className="w-4 h-4 text-rose-400" />

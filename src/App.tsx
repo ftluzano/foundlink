@@ -378,7 +378,7 @@ export default function App() {
 
   // IF AUTHENTICATED: Display full main screen
   return (
-    <div className={`app-shell min-h-screen bg-slate-50 text-slate-900 flex flex-col selection:bg-slate-900 selection:text-white ${isDarkMode ? 'dark-mode' : ''}`}>
+    <div className={`app-shell min-h-screen flex flex-col selection:bg-emerald-900 selection:text-white ${isDarkMode ? 'dark-mode' : ''}`}>
       {/* 1. Modern Top Navigation Bar */}
       <Navbar
         currentTab={currentTab}
@@ -395,7 +395,7 @@ export default function App() {
       />
 
       {/* 2. Main Workspace Viewport */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 pt-3 sm:pt-5">
+      <main className="workspace-enter mx-auto w-full max-w-[1440px] flex-1 px-3 pt-5 sm:px-6 sm:pt-7">
         {currentTab === 'directory' && (
           <PublicDirectory
             items={items}

@@ -98,7 +98,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
     <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full my-6 overflow-hidden animate-in fade-in zoom-in-95 duration-100 text-xs">
         {/* Header */}
-        <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-900 text-white">
+        <div className="flex items-center justify-between border-b border-emerald-950/20 bg-[#174a32] px-5 py-4 text-white">
           <div className="flex items-center gap-2">
             <User className="w-4 h-4 text-emerald-400" />
             <div>
@@ -117,7 +117,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
 
         {/* Digital Campus ID Card Preview */}
         <div className="p-5 bg-slate-50 border-b border-slate-200">
-          <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white p-4 rounded-xl shadow-xs border border-slate-700/80 space-y-3">
+          <div className="space-y-3 rounded-lg border border-[#214f3a] bg-[#173b2b] p-4 text-white shadow-xs">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs border border-emerald-500/30">

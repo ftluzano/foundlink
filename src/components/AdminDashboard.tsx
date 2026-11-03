@@ -179,14 +179,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   return (
     <div className="space-y-4 pb-12">
       {/* Console Top Toolbar */}
-      <div className="bg-slate-900 text-white rounded-lg p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+      <header className="flex flex-col justify-between gap-3 border-b border-emerald-950/10 pb-4 sm:flex-row sm:items-end">
         <div>
-          <div className="flex items-center gap-2 text-xs font-mono text-emerald-400">
-            <Shield className="w-3.5 h-3.5" />
-            <span>CUSTODIAN</span>
+          <div className="flex items-center gap-2 text-[10px] font-bold uppercase text-emerald-800">
+            <Shield className="h-3.5 w-3.5" />
+            <span>Custodian workspace</span>
           </div>
-          <h1 className="text-lg font-bold tracking-tight text-white mt-0.5">
-            Case Management
+          <h1 className="mt-1 text-xl font-extrabold text-[#173b2b] sm:text-2xl">
+            Case management
           </h1>
         </div>
 
@@ -195,13 +195,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             onClick={() => {
               if (confirm('Clear all items and claims?')) onClearAllData();
             }}
-            className="px-2.5 py-1.5 bg-slate-800 hover:bg-rose-950 text-rose-300 border border-slate-700 rounded-md text-xs font-medium transition-colors flex items-center gap-1 cursor-pointer"
+            className="flex cursor-pointer items-center gap-1 rounded-md border border-rose-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-rose-700 transition-colors hover:bg-rose-50"
           >
             <Trash2 className="w-3.5 h-3.5" />
             <span>Clear All</span>
           </button>
         </div>
-      </div>
+      </header>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-6 gap-2.5 text-xs">
@@ -244,7 +244,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       </div>
 
       {/* Main Console Container */}
-      <div className="bg-white rounded-lg border border-slate-200 shadow-xs overflow-hidden">
+      <div className="overflow-hidden border-y border-slate-200 bg-white/85">
         {/* Tab selection */}
         <div className="flex border-b border-slate-200 px-4 gap-4 text-xs font-semibold overflow-x-auto">
           <button

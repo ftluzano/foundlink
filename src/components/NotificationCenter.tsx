@@ -30,7 +30,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
     <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full my-8 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-900 text-white">
+        <div className="flex items-center justify-between border-b border-emerald-950/20 bg-[#174a32] px-6 py-4 text-white">
           <div className="flex items-center gap-2">
             <Bell className="w-5 h-5 text-amber-400" />
             <div>

@@ -136,10 +136,19 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
   };
 
   return (
-    <div className="space-y-4 pb-12">
-      {/* Modern KPI Stats Strip */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-xs flex items-center justify-between">
+    <div className="space-y-5 pb-12">
+      <header className="flex flex-wrap items-end justify-between gap-3 border-b border-emerald-950/10 pb-4">
+        <div>
+          <p className="text-[10px] font-bold uppercase text-emerald-800">PTC FoundLink</p>
+          <h1 className="mt-1 text-xl font-extrabold text-[#173b2b] sm:text-2xl">Lost &amp; Found Directory</h1>
+        </div>
+        <div className="text-right text-xs text-slate-500">
+          <span className="font-semibold text-slate-800">{filteredItems.length}</span> records shown
+        </div>
+      </header>
+
+      <section aria-label="Directory overview" className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-slate-200 bg-slate-200 lg:grid-cols-4">
+        <div className="flex items-center justify-between bg-white p-3.5">
           <div>
             <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
               Active Lost Reports
@@ -148,12 +157,12 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
               {totalLost}
             </span>
           </div>
-          <div className="w-8 h-8 rounded-lg bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 font-bold text-xs">
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-rose-50 text-rose-700 font-bold text-xs">
             L
           </div>
         </div>
 
-        <div className="bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-xs flex items-center justify-between">
+        <div className="flex items-center justify-between bg-white p-3.5">
           <div>
             <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
               Items in Custody
@@ -162,26 +171,26 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
               {totalFound}
             </span>
           </div>
-          <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-xs">
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-emerald-50 text-emerald-800 font-bold text-xs">
             F
           </div>
         </div>
 
-        <div className="bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-xs flex items-center justify-between">
+        <div className="flex items-center justify-between bg-white p-3.5">
           <div>
             <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
               Recovered & Returned
             </span>
-            <span className="text-2xl font-bold font-mono text-blue-600 tabular-nums">
+            <span className="text-2xl font-bold font-mono text-[#356a58] tabular-nums">
               {totalReturned}
             </span>
           </div>
-          <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs">
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[#e8f0ed] text-[#356a58] font-bold text-xs">
             ✓
           </div>
         </div>
 
-        <div className="bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-xs flex items-center justify-between">
+        <div className="flex items-center justify-between bg-white p-3.5">
           <div>
             <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
               Recovery Resolution
@@ -190,14 +199,14 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
               {recoveryRate}%
             </span>
           </div>
-          <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-700 font-bold text-xs">
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-100 text-slate-700 font-bold text-xs">
             %
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Main Search & Filter Control Bar */}
-      <div className="bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-xs space-y-3">
+      <section className="space-y-3 rounded-lg border border-slate-200 bg-white p-3.5 sm:p-4">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5">
           {/* Search Bar with instant clear and shortcut hint */}
           <div className="relative w-full sm:flex-1">
@@ -259,7 +268,7 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
         </div>
 
         {/* Filters Strip */}
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3 text-xs">
           {/* Segmented Type Switcher */}
           <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200">
             <button
@@ -353,11 +362,11 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
             )}
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Main Content Area */}
       {filteredItems.length === 0 ? (
-        <div className="bg-white rounded-xl border border-dashed border-slate-300 p-12 text-center">
+        <div className="rounded-lg border border-dashed border-slate-300 bg-white p-10 text-center">
           <p className="text-sm font-semibold text-slate-700">No matching items found</p>
           <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
             {items.length === 0

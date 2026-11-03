@@ -55,7 +55,7 @@ export const StudentPortalView: React.FC<StudentPortalViewProps> = ({
 
   return (
     <div className="space-y-4 pb-12 text-xs">
-      <div className="bg-white rounded-lg p-4 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <header className="flex flex-col justify-between gap-3 border-b border-emerald-950/10 bg-white/80 p-4 sm:flex-row sm:items-center">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-900 text-white flex items-center justify-center font-bold text-sm border border-slate-200 shrink-0">
             {userProfile.photoBase64 ? (
@@ -70,8 +70,8 @@ export const StudentPortalView: React.FC<StudentPortalViewProps> = ({
           </div>
 
           <div>
-            <p className="text-[10px] font-semibold uppercase text-slate-500">Student workspace</p>
-            <h1 className="mt-0.5 text-base font-bold text-slate-900">{userProfile.name}</h1>
+            <p className="text-[10px] font-bold uppercase text-emerald-800">Student workspace</p>
+            <h1 className="mt-0.5 text-base font-extrabold text-[#173b2b]">{userProfile.name}</h1>
             <p className="text-[11px] text-slate-500">{userProfile.course}</p>
           </div>
         </div>
@@ -79,7 +79,7 @@ export const StudentPortalView: React.FC<StudentPortalViewProps> = ({
         <div className="flex items-center gap-2">
           <button
             onClick={onOpenProfileModal}
-            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md font-semibold flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-200"
+            className="flex cursor-pointer items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-1.5 font-semibold text-slate-700 transition-colors hover:bg-slate-50"
           >
             <User className="w-3.5 h-3.5" />
             <span>Profile</span>
@@ -94,16 +94,16 @@ export const StudentPortalView: React.FC<StudentPortalViewProps> = ({
           </button>
 
         </div>
-      </div>
+      </header>
 
       {/* Tabs */}
-      <div className="bg-white rounded-xl border border-slate-200/90 shadow-xs overflow-hidden">
+      <div className="overflow-hidden border-y border-slate-200 bg-white/85">
         <div className="flex border-b border-slate-200 px-4 gap-4 text-xs font-semibold overflow-x-auto">
           <button
             onClick={() => setActiveTab('claims')}
             className={`py-3 border-b-2 flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
               activeTab === 'claims'
-                ? 'border-slate-900 text-slate-900 font-bold'
+                ? 'border-[#174a32] text-[#174a32] font-bold'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
@@ -116,7 +116,7 @@ export const StudentPortalView: React.FC<StudentPortalViewProps> = ({
             onClick={() => setActiveTab('my-reports')}
             className={`py-3 border-b-2 flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
               activeTab === 'my-reports'
-                ? 'border-slate-900 text-slate-900 font-bold'
+                ? 'border-[#174a32] text-[#174a32] font-bold'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
@@ -129,7 +129,7 @@ export const StudentPortalView: React.FC<StudentPortalViewProps> = ({
             onClick={() => setActiveTab('profile')}
             className={`py-3 border-b-2 flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
               activeTab === 'profile'
-                ? 'border-slate-900 text-slate-900 font-bold'
+                ? 'border-[#174a32] text-[#174a32] font-bold'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
@@ -141,7 +141,7 @@ export const StudentPortalView: React.FC<StudentPortalViewProps> = ({
             onClick={() => setActiveTab('guide')}
             className={`py-3 border-b-2 flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
               activeTab === 'guide'
-                ? 'border-slate-900 text-slate-900 font-bold'
+                ? 'border-[#174a32] text-[#174a32] font-bold'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >

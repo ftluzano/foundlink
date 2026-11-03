@@ -12,9 +12,9 @@ import {
   EyeOff
 } from 'lucide-react';
 import ptcLogo from '../assets/images/ptc.jpg';
+import campusPhoto from '../assets/images/ptc2.png';
 import { authService } from '../services/authService';
 import { UserProfile } from '../types';
-import { RotatingPlaceBackground } from './RotatingPlaceBackground';
 import { PTC_COURSE_GROUPS, PTC_COURSES, PTC_YEAR_LEVELS } from '../utils/ptcPrograms';
 
 interface AuthScreenProps {
@@ -161,27 +161,47 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-3 sm:p-4 selection:bg-slate-800 selection:text-white relative overflow-hidden">
-      {/* 60FPS Efficient Rotating Campus Globe & Location System */}
-      <RotatingPlaceBackground />
+    <div className="auth-screen min-h-screen bg-[#f3f6f3] text-slate-900 selection:bg-emerald-900 selection:text-white lg:grid lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+      <aside className="relative flex min-h-[270px] overflow-hidden bg-[#173b2b] text-white sm:min-h-[300px] lg:min-h-screen">
+        <img src={campusPhoto} alt="Pateros Technological College campus" className="absolute inset-0 h-full w-full object-cover object-center" />
+        <div className="absolute inset-0 bg-[#102b20]/65" />
+        <div className="relative z-10 flex w-full flex-1 flex-col justify-between px-5 py-5 sm:px-8 sm:py-7 lg:px-12 lg:py-10">
+          <div className="flex items-center gap-2.5">
+            <span className="brand-mark brand-mark--auth scale-[0.94] sm:scale-100" aria-hidden="true">
+              <img src={ptcLogo} alt="" className="h-full w-full rounded-full object-cover" />
+            </span>
+            <div className="text-left">
+              <span className="block text-sm font-bold leading-tight text-white sm:text-base">FOUNDLINK PTC</span>
+              <span className="text-[10px] font-medium text-white/75 sm:text-[11px]">Pateros Technological College</span>
+            </div>
+          </div>
 
-      {/* Brand Header */}
-      <div className="relative z-10 flex items-center justify-center gap-2.5 sm:gap-2.75 mb-3 sm:mb-5 text-center">
-        <span className="brand-mark brand-mark--auth scale-[0.94] sm:scale-100" aria-hidden="true">
-          <img src={ptcLogo} alt="" className="h-full w-full rounded-full object-cover" />
-        </span>
-        <div className="text-left">
-          <span className="text-base sm:text-lg font-bold tracking-tight text-white block leading-tight">
-            FOUNDLINK PTC
-          </span>
-          <span className="text-[10px] sm:text-[11px] text-slate-400 font-medium">
-            Pateros Technological College
-          </span>
+          <div className="mt-8 max-w-lg lg:mb-10">
+            <p className="text-[10px] font-bold uppercase text-white/75">Campus community</p>
+            <h1 className="mt-2 text-2xl font-extrabold leading-tight text-white sm:text-3xl lg:text-4xl">PTC FoundLink</h1>
+            <p className="mt-2 text-sm text-white/80">Lost &amp; Found Services</p>
+          </div>
+
+          <div className="hidden border-t border-white/20 pt-4 text-[11px] text-white/70 lg:block">
+            Pateros Technological College · Pateros, Metro Manila
+          </div>
         </div>
-      </div>
+      </aside>
+
+      <main className="flex min-h-[calc(100vh-270px)] items-center justify-center px-4 py-8 sm:px-8 lg:min-h-screen lg:px-12 lg:py-12">
+        <div className="w-full max-w-[31rem]">
+          <header className="mb-5">
+            <p className="text-[10px] font-bold uppercase text-emerald-800">Account access</p>
+            <h2 className="mt-1 text-xl font-extrabold text-[#173b2b] sm:text-2xl">
+              {mode === 'login' ? 'Welcome back' : mode === 'register' ? 'Create your account' : 'Reset your password'}
+            </h2>
+            <p className="mt-1 text-xs text-slate-500">
+              {mode === 'register' ? 'Register your campus profile to continue.' : 'Use your campus email or Google account.'}
+            </p>
+          </header>
 
       {/* Auth Card */}
-      <div className="relative z-10 bg-white text-slate-900 rounded-2xl shadow-2xl border border-slate-200/90 w-full max-w-[min(28rem,calc(100vw-1.25rem))] min-w-0 overflow-hidden text-xs">
+      <div className="auth-card w-full min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white text-xs shadow-[0_12px_36px_rgba(20,45,33,0.08)]">
         {/* Tab Switcher */}
         {mode !== 'forgot' ? (
           <div className="p-1.5 bg-slate-100 border-b border-slate-200 grid grid-cols-2 gap-1 font-semibold text-xs">
@@ -217,7 +237,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
             </button>
           </div>
         ) : (
-          <div className="px-5 py-3.5 bg-slate-900 text-white flex items-center justify-between">
+          <div className="flex items-center justify-between bg-[#174a32] px-5 py-3.5 text-white">
             <span className="font-bold text-sm">Reset Password</span>
             <button
               type="button"
@@ -234,7 +254,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
         )}
 
         {/* Card Body */}
-        <div className="p-4 sm:p-5 space-y-4 max-h-[75vh] overflow-y-auto">
+        <div className="max-h-[75vh] space-y-4 overflow-y-auto p-4 sm:p-5 lg:max-h-[78vh]">
           {errorMsg && (
             <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 font-medium flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
@@ -558,6 +578,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
           )}
         </div>
       </div>
+        </div>
+      </main>
     </div>
   );
 };
