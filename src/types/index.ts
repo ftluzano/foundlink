@@ -38,6 +38,34 @@ export interface RecoveryReportRecord {
   createdAt: string;
 }
 
+export interface ConversationRecord {
+  id: string;
+  itemId: string;
+  itemTitle: string;
+  itemType: ItemType;
+  ownerUid: string;
+  ownerName: string;
+  participantUid: string;
+  participantName: string;
+  lastMessage: string;
+  lastMessageAt: string;
+  lastSenderUid: string;
+  ownerUnread: number;
+  participantUnread: number;
+  hiddenForOwner: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ChatMessageRecord {
+  id: string;
+  conversationId: string;
+  senderUid: string;
+  senderName: string;
+  text: string;
+  createdAt: string;
+}
+
 export type ItemType = 'lost' | 'found';
 
 export type ItemStatus =
@@ -89,25 +117,16 @@ export interface ItemRecord {
   reportedBy: ReporterInfo;
   custodyLocation?: string; // Physical storage location if held (e.g. "Security Office - Cabinet A2")
   matchedItemId?: string | null;
+  upCount?: number;
   createdAt: string;
   updatedAt: string;
 }
 
-export type ItemReactionType = 'like' | 'love' | 'support';
-
-export interface ItemComment {
+export interface ItemUpRecord {
   id: string;
-  authorId: string;
-  authorName: string;
-  text: string;
-  createdAt: string;
-}
-
-export interface ItemReaction {
+  itemId: string;
   userId: string;
-  userName: string;
-  type: ItemReactionType;
-  updatedAt: string;
+  createdAt: string;
 }
 
 export type ClaimStatus =
@@ -183,6 +202,7 @@ export interface NotificationRecord {
   type: NotificationType;
   relatedItemId?: string;
   relatedClaimId?: string;
+  relatedConversationId?: string;
   senderUid?: string;
   isRead: boolean;
   createdAt: string;

@@ -17,6 +17,7 @@ interface NotificationCenterProps {
   onMarkRead: (id: string) => void;
   onMarkAllRead: () => void;
   onSelectNotificationItem?: (itemId?: string) => void;
+  onSelectNotificationConversation?: (conversationId: string) => void;
 }
 
 export const NotificationCenter: React.FC<NotificationCenterProps> = ({
@@ -24,7 +25,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   onClose,
   onMarkRead,
   onMarkAllRead,
-  onSelectNotificationItem
+  onSelectNotificationItem,
+  onSelectNotificationConversation
 }) => {
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
@@ -81,6 +83,11 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                   key={n.id}
                   onClick={() => {
                     if (!n.isRead) onMarkRead(n.id);
+                    if (n.relatedConversationId && onSelectNotificationConversation) {
+                      onSelectNotificationConversation(n.relatedConversationId);
+                      onClose();
+                      return;
+                    }
                     if (n.relatedItemId && onSelectNotificationItem) {
                       onSelectNotificationItem(n.relatedItemId);
                       onClose();

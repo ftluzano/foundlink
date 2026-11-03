@@ -11,11 +11,25 @@ const ALLOWED_COLLECTIONS = new Set([
   'users',
   'custodians',
   'presence',
+  'item_ups',
+  'recovery_reports',
+  'reputation',
+  'conversations',
+  'messages'
+]);
+const CLEARABLE_COLLECTIONS = [
+  'items',
+  'claims',
+  'potential_matches',
+  'notifications',
+  'presence',
   'item_comments',
   'item_reactions',
+  'item_ups',
   'recovery_reports',
-  'reputation'
-]);
+  'conversations',
+  'messages'
+];
 const firebaseKeys = createRemoteJWKSet(new URL(
   'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com'
 ));
@@ -65,7 +79,8 @@ async function getIdentity(request) {
 
   return {
     uid: payload.sub,
-    email: typeof payload.email === 'string' ? payload.email.toLowerCase() : ''
+    email: typeof payload.email === 'string' ? payload.email.toLowerCase() : '',
+    name: typeof payload.name === 'string' ? payload.name : ''
   };
 }
 
@@ -82,22 +97,39 @@ function ownsClaim(record, uid) {
   return record.claimantId === uid || record.claimantUid === uid || record.claimant?.uid === uid;
 }
 
-function authorizeRead(collection, id, record, identity, admin) {
+export function authorizeRead(collection, id, record, identity, admin) {
   if (collection === 'reputation') return true;
   if (collection === 'items') return true;
-  if (collection === 'item_comments' || collection === 'item_reactions') return true;
+  if (collection === 'item_ups') return Boolean(identity && record.userId === identity.uid);
   if (!identity) return false;
   if (collection === 'potential_matches') return true;
   if (collection === 'claims') return admin || ownsClaim(record, identity.uid);
   if (collection === 'notifications') return admin || record.userId === identity.uid;
   if (collection === 'audit_logs') return admin;
-  if (collection === 'users') return admin || id === identity.uid;
+  if (collection === 'users') return id === identity.uid;
   if (collection === 'custodians') return admin || id === identity.uid;
   if (collection === 'presence') return admin;
   if (collection === 'recovery_reports') {
     return admin || record.finderUid === identity.uid || record.ownerUid === identity.uid;
   }
+  if (collection === 'conversations') {
+    return (record.ownerUid === identity.uid && !record.hiddenForOwner) || record.participantUid === identity.uid;
+  }
   return false;
+}
+
+export function redactRecord(collection, record, identity, admin) {
+  if (collection !== 'items') return record;
+  return {
+    ...record,
+    secretDetails: '',
+    reportedBy: {
+      ...record.reportedBy,
+      email: '',
+      phone: '',
+      idNumber: ''
+    }
+  };
 }
 
 async function authorizeWrite(db, collection, operation, id, data, identity, admin) {
@@ -130,10 +162,12 @@ async function authorizeWrite(db, collection, operation, id, data, identity, adm
     }
     return false;
   }
-  if (collection === 'audit_logs') return operation === 'create';
+  if (collection === 'audit_logs') {
+    return operation === 'create' && !(await readRecord(db, collection, id));
+  }
   if (collection === 'users') {
     if (operation === 'delete') return admin;
-    return (admin || id === identity.uid) && data.uid === id && data.role !== 'admin';
+    return id === identity.uid && data.uid === id && data.role !== 'admin';
   }
   if (collection === 'custodians') {
     return identity.email === PRIMARY_CUSTODIAN_EMAIL && id !== identity.uid;
@@ -141,22 +175,6 @@ async function authorizeWrite(db, collection, operation, id, data, identity, adm
   if (collection === 'presence') {
     if (operation === 'delete') return id === identity.uid;
     return id === identity.uid && data.uid === identity.uid && typeof data.isOnline === 'boolean';
-  }
-  if (collection === 'item_comments') {
-    if (operation === 'delete') {
-      const current = await readRecord(db, collection, id);
-      return current?.authorId === identity.uid;
-    }
-    const current = await readRecord(db, collection, id);
-    return data.authorId === identity.uid && typeof data.text === 'string' && data.text.length > 0 && data.text.length <= 500 &&
-      (operation === 'create' ? !current : current?.authorId === identity.uid);
-  }
-  if (collection === 'item_reactions') {
-    if (operation === 'delete') return id.endsWith(`:${identity.uid}`);
-    const current = await readRecord(db, collection, id);
-    return id.endsWith(`:${identity.uid}`) && data.userId === identity.uid &&
-      ['like', 'love', 'support'].includes(data.type) &&
-      (operation === 'create' ? !current : !current || current.userId === identity.uid);
   }
   if (collection === 'recovery_reports') {
     if (operation !== 'create' || data.finderUid !== identity.uid) return false;
@@ -174,6 +192,173 @@ async function readRecord(db, collection, id) {
     args: [collection, id]
   });
   return result.rows.length ? JSON.parse(result.rows[0].data) : null;
+}
+
+async function writeRecord(db, collection, id, data) {
+  await db.execute({
+    sql: `INSERT INTO app_records (collection, record_id, data, updated_at)
+          VALUES (?, ?, ?, ?)
+          ON CONFLICT(collection, record_id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at`,
+    args: [collection, id, JSON.stringify(data), new Date().toISOString()]
+  });
+}
+
+export async function toggleItemUp(db, identity, itemId) {
+  if (!identity) return { status: 401, body: { error: 'Sign in to use Up!.' } };
+  if (typeof itemId !== 'string' || !itemId) return { status: 400, body: { error: 'An item is required.' } };
+
+  const tx = await db.transaction('write');
+  try {
+    const item = await readRecord(tx, 'items', itemId);
+    if (!item) {
+      await tx.rollback();
+      return { status: 404, body: { error: 'Item not found.' } };
+    }
+    const voteId = `${itemId}:${identity.uid}`;
+    const currentVote = await readRecord(tx, 'item_ups', voteId);
+    if (currentVote) {
+      await tx.execute({
+        sql: 'DELETE FROM app_records WHERE collection = ? AND record_id = ?',
+        args: ['item_ups', voteId]
+      });
+      item.upCount = Math.max(0, Number(item.upCount || 0) - 1);
+    } else {
+      const createdAt = new Date().toISOString();
+      await writeRecord(tx, 'item_ups', voteId, { id: voteId, itemId, userId: identity.uid, createdAt });
+    }
+    const voteCount = await tx.execute({
+      sql: "SELECT COUNT(*) AS count FROM app_records WHERE collection = ? AND json_extract(data, '$.itemId') = ?",
+      args: ['item_ups', itemId]
+    });
+    item.upCount = Number(voteCount.rows[0]?.count || 0);
+    item.updatedAt = new Date().toISOString();
+    await writeRecord(tx, 'items', itemId, item);
+    await tx.commit();
+    return { status: 200, body: { upvoted: !currentVote, upCount: item.upCount } };
+  } catch (error) {
+    await tx.rollback();
+    throw error;
+  }
+}
+
+export async function handleChatOperation(db, operation, identity, data) {
+  if (!identity) return { status: 401, body: { error: 'Sign in to use messages.' } };
+  if (!['send_message', 'mark_conversation_read', 'delete_conversation'].includes(operation)) return null;
+
+  const conversationId = typeof data?.conversationId === 'string' ? data.conversationId : '';
+  if (operation === 'send_message') {
+    const text = typeof data?.text === 'string' ? data.text.trim() : '';
+    if (!text || text.length > 2000) return { status: 400, body: { error: 'Messages must be between 1 and 2000 characters.' } };
+
+    const tx = await db.transaction('write');
+    try {
+      let conversation = conversationId ? await readRecord(tx, 'conversations', conversationId) : null;
+      const itemId = typeof data.itemId === 'string' ? data.itemId : conversation?.itemId;
+      const item = itemId ? await readRecord(tx, 'items', itemId) : null;
+      if (!item) {
+        await tx.rollback();
+        return { status: 404, body: { error: 'This report is no longer available.' } };
+      }
+
+      if (!conversation) {
+        const existingId = `${item.id}:${identity.uid}`;
+        if (!conversationId) conversation = await readRecord(tx, 'conversations', existingId);
+      }
+
+      if (!conversation) {
+        const ownerUid = item.reportedBy?.uid;
+        if (!ownerUid || ownerUid === identity.uid || conversationId) {
+          await tx.rollback();
+          return { status: 403, body: { error: 'You cannot start a conversation on this post.' } };
+        }
+        const expectedId = `${item.id}:${identity.uid}`;
+        const profile = await readRecord(tx, 'users', identity.uid);
+        conversation = {
+          id: expectedId,
+          itemId: item.id,
+          itemTitle: item.title,
+          itemType: item.type,
+          ownerUid,
+          ownerName: item.reportedBy.name || 'Post owner',
+          participantUid: identity.uid,
+          participantName: profile?.name || identity.name || 'Campus member',
+          lastMessage: '',
+          lastMessageAt: '',
+          lastSenderUid: '',
+          ownerUnread: 0,
+          participantUnread: 0,
+          hiddenForOwner: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+      } else if (conversation.itemId !== item.id || ![conversation.ownerUid, conversation.participantUid].includes(identity.uid)) {
+        await tx.rollback();
+        return { status: 403, body: { error: 'You are not a participant in this conversation.' } };
+      }
+
+      const profile = await readRecord(tx, 'users', identity.uid);
+      const senderName = profile?.name || identity.name || (identity.uid === conversation.ownerUid ? conversation.ownerName : conversation.participantName);
+      const createdAt = new Date().toISOString();
+      const messageId = `MSG-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+      const message = { id: messageId, conversationId: conversation.id, senderUid: identity.uid, senderName, text, createdAt };
+      const isOwner = identity.uid === conversation.ownerUid;
+      conversation.lastMessage = text.slice(0, 180);
+      conversation.lastMessageAt = createdAt;
+      conversation.lastSenderUid = identity.uid;
+      conversation.updatedAt = createdAt;
+      if (isOwner) conversation.participantUnread += 1;
+      else {
+        conversation.ownerUnread += 1;
+        conversation.hiddenForOwner = false;
+      }
+
+      await writeRecord(tx, 'conversations', conversation.id, conversation);
+      await writeRecord(tx, 'messages', messageId, message);
+      const recipientUid = isOwner ? conversation.participantUid : conversation.ownerUid;
+      const notificationId = `CHAT-${conversation.id}-${Date.now()}`;
+      await writeRecord(tx, 'notifications', notificationId, {
+        id: notificationId,
+        userId: recipientUid,
+        senderUid: identity.uid,
+        title: `New message about ${conversation.itemTitle}`,
+        message: `${senderName} sent you a message about your ${conversation.itemType} item.`,
+        type: 'system',
+        relatedItemId: conversation.itemId,
+        relatedConversationId: conversation.id,
+        isRead: false,
+        createdAt
+      });
+      await tx.commit();
+      return { status: 200, body: { conversation, message } };
+    } catch (error) {
+      await tx.rollback();
+      throw error;
+    }
+  }
+
+  if (!conversationId) return { status: 400, body: { error: 'A conversation is required.' } };
+  const conversation = await readRecord(db, 'conversations', conversationId);
+  if (!conversation || ![conversation.ownerUid, conversation.participantUid].includes(identity.uid) ||
+      (conversation.ownerUid === identity.uid && conversation.hiddenForOwner)) {
+    return { status: 404, body: { error: 'Conversation not found.' } };
+  }
+
+  if (operation === 'delete_conversation') {
+    if (identity.uid !== conversation.ownerUid) {
+      return { status: 403, body: { error: 'Only the post owner can remove this conversation from their inbox.' } };
+    }
+    conversation.hiddenForOwner = true;
+    conversation.ownerUnread = 0;
+    conversation.updatedAt = new Date().toISOString();
+    await writeRecord(db, 'conversations', conversation.id, conversation);
+    return { status: 200, body: { ok: true } };
+  }
+
+  if (identity.uid === conversation.ownerUid) conversation.ownerUnread = 0;
+  else conversation.participantUnread = 0;
+  conversation.updatedAt = new Date().toISOString();
+  await writeRecord(db, 'conversations', conversation.id, conversation);
+  return { status: 200, body: { ok: true } };
 }
 
 async function addReputationEvent(db, event) {
@@ -205,6 +390,33 @@ async function getReputationLeaderboard(db) {
   }));
 }
 
+export async function clearOperationalData(db, identity) {
+  const tx = await db.transaction('write');
+  try {
+    const collectionPlaceholders = CLEARABLE_COLLECTIONS.map(() => '?').join(', ');
+    await tx.execute({
+      sql: `DELETE FROM app_records WHERE collection IN (${collectionPlaceholders})`,
+      args: CLEARABLE_COLLECTIONS
+    });
+    await tx.execute('DELETE FROM reputation_events');
+    const timestamp = new Date().toISOString();
+    const auditId = `AUDIT-CLEAR-${Date.now()}`;
+    await writeRecord(tx, 'audit_logs', auditId, {
+      id: auditId,
+      timestamp,
+      actorId: identity?.uid,
+      actorName: identity?.name || 'Custodian',
+      actorRole: 'admin',
+      action: 'Operational Records Cleared',
+      details: 'Items, claims, messages, notifications, Up! votes, and reputation were cleared. Audit history was preserved.'
+    });
+    await tx.commit();
+  } catch (error) {
+    await tx.rollback();
+    throw error;
+  }
+}
+
 export default async function handler(request, response) {
   if (!['GET', 'POST'].includes(request.method || '')) {
     response.setHeader('Allow', 'GET, POST');
@@ -218,6 +430,25 @@ export default async function handler(request, response) {
     const admin = identity ? await isAdmin(db, identity) : false;
 
     if (request.method === 'GET') {
+      const requestedMessageConversation = String(request.query.conversationId || '');
+      if (request.query.collection === 'messages') {
+        if (!identity) return response.status(401).json({ error: 'Sign in to view messages.' });
+        if (!requestedMessageConversation) return response.status(400).json({ error: 'A conversation is required.' });
+        const conversation = await readRecord(db, 'conversations', requestedMessageConversation);
+        if (!conversation || ![conversation.ownerUid, conversation.participantUid].includes(identity.uid) ||
+            (conversation.ownerUid === identity.uid && conversation.hiddenForOwner)) {
+          return response.status(404).json({ error: 'Conversation not found.' });
+        }
+        const result = await db.execute({
+          sql: 'SELECT data FROM app_records WHERE collection = ?',
+          args: ['messages']
+        });
+        const messages = result.rows
+          .map((row) => JSON.parse(row.data))
+          .filter((message) => message.conversationId === requestedMessageConversation)
+          .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+        return response.status(200).json({ records: messages });
+      }
       const requestedCollections = request.query.collections
         ? String(request.query.collections).split(',').filter(Boolean)
         : null;
@@ -237,7 +468,7 @@ export default async function handler(request, response) {
           });
           records[collection] = result.rows
             .filter((row) => authorizeRead(collection, row.record_id, JSON.parse(row.data), identity, admin))
-            .map((row) => JSON.parse(row.data));
+            .map((row) => redactRecord(collection, JSON.parse(row.data), identity, admin));
         }));
         return response.status(200).json({ records });
       }
@@ -252,12 +483,44 @@ export default async function handler(request, response) {
       });
       const records = result.rows
         .filter((row) => authorizeRead(collection, row.record_id, JSON.parse(row.data), identity, admin))
-        .map((row) => JSON.parse(row.data));
+        .map((row) => redactRecord(collection, JSON.parse(row.data), identity, admin));
       return response.status(200).json({ records });
     }
 
     if (!identity) return response.status(401).json({ error: 'Sign in with Firebase before changing site data.' });
     const { collection, operation, id, data } = request.body || {};
+    if (operation === 'toggle_item_up') {
+      const result = await toggleItemUp(db, identity, data?.itemId);
+      return response.status(result.status).json(result.body);
+    }
+    if (operation === 'get_private_item') {
+      if (!admin) return response.status(403).json({ error: 'Only a Custodian can review confidential item details.' });
+      const itemId = typeof data?.itemId === 'string' ? data.itemId : '';
+      const item = itemId ? await readRecord(db, 'items', itemId) : null;
+      if (!item) return response.status(404).json({ error: 'Item record not found.' });
+      const auditId = `AUDIT-PRIVATE-${itemId}-${Date.now()}`;
+      await writeRecord(db, 'audit_logs', auditId, {
+        id: auditId,
+        timestamp: new Date().toISOString(),
+        actorId: identity.uid,
+        actorName: identity.name || 'Custodian',
+        actorRole: 'admin',
+        action: 'Private Verification Details Accessed',
+        entityType: 'item',
+        entityId: itemId,
+        details: `Confidential verification detail opened for claim review on ${itemId}`
+      });
+      return response.status(200).json({ item: { id: item.id, title: item.title, secretDetails: item.secretDetails || '' } });
+    }
+    if (['send_message', 'mark_conversation_read', 'delete_conversation'].includes(operation)) {
+      const result = await handleChatOperation(db, operation, identity, data || {});
+      return response.status(result.status).json(result.body);
+    }
+    if (operation === 'clear_app_data') {
+      if (!admin) return response.status(403).json({ error: 'Only a custodian can clear site records.' });
+      await clearOperationalData(db, identity);
+      return response.status(200).json({ ok: true });
+    }
     if (operation === 'verify_recovery') {
       const tx = await db.transaction('write');
       try {
@@ -294,6 +557,18 @@ export default async function handler(request, response) {
           sql: 'UPDATE app_records SET data = ?, updated_at = ? WHERE collection = ? AND record_id = ?',
           args: [JSON.stringify(item), item.updatedAt, 'items', id]
         });
+        const auditId = `AUDIT-RECOVERY-${id}-${Date.now()}`;
+        await writeRecord(tx, 'audit_logs', auditId, {
+          id: auditId,
+          timestamp: item.updatedAt,
+          actorId: identity.uid,
+          actorName: item.reportedBy.name || 'Item owner',
+          actorRole: 'owner',
+          action: 'Recovery Confirmed',
+          entityType: 'item',
+          entityId: id,
+          details: data?.finderUid ? `Recovery verified with finder ${data.finderUid}` : 'Owner confirmed item recovery'
+        });
         await tx.commit();
         return response.status(200).json({ ok: true, item });
       } catch (error) {
@@ -314,6 +589,12 @@ export default async function handler(request, response) {
       return response.status(403).json({ error: 'You do not have permission to change this record.' });
     }
 
+    let recordData = data;
+    if (collection === 'items') {
+      const currentItem = await readRecord(db, 'items', id);
+      recordData = { ...data, upCount: Number(currentItem?.upCount || 0) };
+    }
+
     if (operation === 'delete') {
       await db.execute({
         sql: 'DELETE FROM app_records WHERE collection = ? AND record_id = ?',
@@ -324,7 +605,7 @@ export default async function handler(request, response) {
         sql: `INSERT INTO app_records (collection, record_id, data, updated_at)
               VALUES (?, ?, ?, ?)
               ON CONFLICT(collection, record_id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at`,
-        args: [collection, id, JSON.stringify(data), new Date().toISOString()]
+        args: [collection, id, JSON.stringify(recordData), new Date().toISOString()]
       });
     }
 

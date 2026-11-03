@@ -343,17 +343,11 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                 <input
                   type="text"
                   required
-                  list="report-campus-locations"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
-                  placeholder="Start typing a campus area"
+                  placeholder="Building, floor, room, or nearby landmark"
                   className="w-full px-2.5 py-1.5 border border-slate-200 rounded-md"
                 />
-                <datalist id="report-campus-locations">
-                  {CAMPUS_LOCATIONS.filter((area) => area !== 'All Campus Locations').map((area) => (
-                    <option key={area} value={area} />
-                  ))}
-                </datalist>
               </div>
 
               <div>

@@ -3,16 +3,16 @@ import { auth } from './firebase';
 import { tursoApi } from './tursoApi';
 import {
   ItemRecord,
-  ItemComment,
-  ItemReaction,
-  ItemReactionType,
+  ItemUpRecord,
   ClaimRecord,
   PotentialMatchRecord,
   NotificationRecord,
   AuditLogRecord,
   OnlineUserRecord,
   ReputationRecord,
-  RecoveryReportRecord
+  RecoveryReportRecord,
+  ConversationRecord,
+  ChatMessageRecord
 } from '../types';
 import { findPotentialMatchesForItem } from './matchingService';
 
@@ -25,6 +25,10 @@ class RealtimeStore {
   private notifications: NotificationRecord[] = [];
   private auditLogs: AuditLogRecord[] = [];
   private reputation: ReputationRecord[] = [];
+  private itemUps: ItemUpRecord[] = [];
+  private recoveryReports: RecoveryReportRecord[] = [];
+  private conversations: ConversationRecord[] = [];
+  private refreshGeneration = 0;
 
   private itemsListeners: Set<Listener<ItemRecord[]>> = new Set();
   private claimsListeners: Set<Listener<ClaimRecord[]>> = new Set();
@@ -32,6 +36,9 @@ class RealtimeStore {
   private notifListeners: Set<Listener<NotificationRecord[]>> = new Set();
   private auditListeners: Set<Listener<AuditLogRecord[]>> = new Set();
   private reputationListeners: Set<Listener<ReputationRecord[]>> = new Set();
+  private itemUpListeners: Map<string, Set<Listener<ItemUpRecord[]>>> = new Map();
+  private recoveryReportListeners: Set<Listener<RecoveryReportRecord[]>> = new Set();
+  private conversationListeners: Set<Listener<ConversationRecord[]>> = new Set();
 
   private broadcastChannel: BroadcastChannel | null = null;
   public isDataConnected = false;
@@ -63,9 +70,10 @@ class RealtimeStore {
     const refresh = async () => {
       if (refreshInProgress) return;
       refreshInProgress = true;
+      const requestGeneration = this.refreshGeneration;
       try {
         const collections = auth.currentUser
-          ? ['items', 'claims', 'potential_matches', 'notifications', 'audit_logs', 'reputation'] as const
+          ? ['items', 'claims', 'potential_matches', 'notifications', 'audit_logs', 'reputation', 'recovery_reports', 'conversations', 'item_ups'] as const
           : ['items'] as const;
         const remote = await tursoApi.snapshot<{
           items: ItemRecord[];
@@ -74,7 +82,11 @@ class RealtimeStore {
           notifications: NotificationRecord[];
           audit_logs: AuditLogRecord[];
           reputation: ReputationRecord[];
+          recovery_reports: RecoveryReportRecord[];
+          conversations: ConversationRecord[];
+          item_ups: ItemUpRecord[];
         }>([...collections]);
+        if (requestGeneration !== this.refreshGeneration) return;
         this.items = (remote.items || [])
           .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         this.notifyItems();
@@ -85,12 +97,18 @@ class RealtimeStore {
           this.notifications = (remote.notifications || []).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
           this.auditLogs = (remote.audit_logs || []).sort((a, b) => b.timestamp.localeCompare(a.timestamp));
           this.reputation = remote.reputation || [];
+          this.recoveryReports = remote.recovery_reports || [];
+          this.conversations = (remote.conversations || []).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+          this.itemUps = remote.item_ups || [];
         } else {
           this.claims = [];
           this.potentialMatches = [];
           this.notifications = [];
           this.auditLogs = [];
           this.reputation = [];
+          this.recoveryReports = [];
+          this.conversations = [];
+          this.itemUps = [];
         }
 
         this.isDataConnected = true;
@@ -101,6 +119,9 @@ class RealtimeStore {
         this.notifyNotifs();
         this.notifyAudit();
         this.notifyReputation();
+        this.notifyRecoveryReports();
+        this.notifyConversations();
+        this.itemUpListeners.forEach((_listeners, itemId) => this.notifyItemUps(itemId));
       } catch (error) {
         this.isDataConnected = false;
         this.dataStatusMessage = error instanceof Error ? error.message : 'Turso connection failed.';
@@ -221,6 +242,12 @@ class RealtimeStore {
   private notifyReputation() {
     this.reputationListeners.forEach((fn) => fn([...this.reputation]));
   }
+  private notifyRecoveryReports() {
+    this.recoveryReportListeners.forEach((fn) => fn([...this.recoveryReports]));
+  }
+  private notifyConversations() {
+    this.conversationListeners.forEach((fn) => fn([...this.conversations]));
+  }
 
   private notifyAll() {
     this.notifyItems();
@@ -229,6 +256,8 @@ class RealtimeStore {
     this.notifyNotifs();
     this.notifyAudit();
     this.notifyReputation();
+    this.notifyRecoveryReports();
+    this.notifyConversations();
   }
 
   // ---------------- SUBSCRIPTIONS ----------------
@@ -348,73 +377,36 @@ class RealtimeStore {
     }
   }
 
-  subscribeItemSocial(
-    itemId: string,
-    listener: (comments: ItemComment[], reactions: ItemReaction[]) => void
-  ): () => void {
-    let active = true;
-    let refreshInProgress = false;
-    const refresh = async () => {
-      if (refreshInProgress) return;
-      refreshInProgress = true;
-      try {
-        const [allComments, allReactions] = await Promise.all([
-          tursoApi.list<ItemComment & { itemId: string }>('item_comments'),
-          tursoApi.list<ItemReaction & { itemId: string }>('item_reactions')
-        ]);
-        if (!active) return;
-        listener(
-          allComments.filter((comment) => comment.itemId === itemId).sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
-          allReactions.filter((reaction) => reaction.itemId === itemId)
-        );
-      } catch (error) {
-        console.warn('Turso item social sync notice:', error);
-      } finally {
-        refreshInProgress = false;
-      }
-    };
-    void refresh();
-    const handleFocus = () => void refresh();
-    const interval = window.setInterval(() => void refresh(), 2_500);
-    window.addEventListener('focus', handleFocus);
+  private notifyItemUps(itemId: string) {
+    this.itemUpListeners.get(itemId)?.forEach((listener) => {
+      listener(this.itemUps.filter((vote) => vote.itemId === itemId));
+    });
+  }
+
+  subscribeItemUps(itemId: string, listener: Listener<ItemUpRecord[]>): () => void {
+    const listeners = this.itemUpListeners.get(itemId) || new Set<Listener<ItemUpRecord[]>>();
+    listeners.add(listener);
+    this.itemUpListeners.set(itemId, listeners);
+    listener(this.itemUps.filter((vote) => vote.itemId === itemId));
     return () => {
-      active = false;
-      window.clearInterval(interval);
-      window.removeEventListener('focus', handleFocus);
+      listeners.delete(listener);
+      if (listeners.size === 0) this.itemUpListeners.delete(itemId);
     };
   }
 
-  async createItemComment(itemId: string, authorName: string, text: string): Promise<void> {
+  async toggleItemUp(itemId: string): Promise<{ upvoted: boolean; upCount: number }> {
     const user = auth.currentUser;
-    if (!user) throw new Error('Sign in with your account to comment.');
-
-    const comment: ItemComment = {
-      id: `comment_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-      authorId: user.uid,
-      authorName,
-      text: text.trim(),
-      createdAt: new Date().toISOString()
-    };
-    await tursoApi.create('item_comments', `${itemId}:${comment.id}`, { ...comment, itemId });
-  }
-
-  async setItemReaction(itemId: string, type: ItemReactionType | null, userName: string): Promise<void> {
-    const user = auth.currentUser;
-    if (!user) throw new Error('Sign in with your account to react.');
-
-    const reactionId = `${itemId}:${user.uid}`;
-    if (!type) {
-      await tursoApi.delete('item_reactions', reactionId);
-      return;
+    if (!user) throw new Error('Sign in with your account to use Up!.');
+    const result = await tursoApi.toggleItemUp(itemId);
+    this.itemUps = this.itemUps.filter((vote) => !(vote.itemId === itemId && vote.userId === user.uid));
+    if (result.upvoted) {
+      this.itemUps.push({ id: `${itemId}:${user.uid}`, itemId, userId: user.uid, createdAt: new Date().toISOString() });
     }
-
-    const reaction: ItemReaction = {
-      userId: user.uid,
-      userName,
-      type,
-      updatedAt: new Date().toISOString()
-    };
-    await tursoApi.save('item_reactions', reactionId, { ...reaction, itemId });
+    this.items = this.items.map((item) => item.id === itemId ? { ...item, upCount: result.upCount } : item);
+    this.saveToLocalStorageAndBroadcast(true);
+    this.notifyItems();
+    this.notifyItemUps(itemId);
+    return result;
   }
 
   subscribeClaims(listener: Listener<ClaimRecord[]>): () => void {
@@ -477,6 +469,15 @@ class RealtimeStore {
       createdAt
     });
     await tursoApi.create('notifications', notificationId, notification);
+    await this.logAudit({
+      actorId: user.uid,
+      action: 'Recovery Report Submitted',
+      actorName: finderName,
+      actorRole: 'student',
+      entityType: 'item',
+      entityId: item.id,
+      details: `Finder report submitted for ${item.title}`
+    });
   }
 
   async getRecoveryReports(itemId: string): Promise<RecoveryReportRecord[]> {
@@ -518,6 +519,67 @@ class RealtimeStore {
     this.reputationListeners.add(listener);
     listener([...this.reputation]);
     return () => this.reputationListeners.delete(listener);
+  }
+
+  subscribeRecoveryReports(listener: Listener<RecoveryReportRecord[]>): () => void {
+    this.recoveryReportListeners.add(listener);
+    listener([...this.recoveryReports]);
+    return () => this.recoveryReportListeners.delete(listener);
+  }
+
+  subscribeConversations(listener: Listener<ConversationRecord[]>): () => void {
+    this.conversationListeners.add(listener);
+    listener([...this.conversations]);
+    return () => this.conversationListeners.delete(listener);
+  }
+
+  subscribeChatMessages(conversationId: string, listener: Listener<ChatMessageRecord[]>): () => void {
+    let active = true;
+    let refreshInProgress = false;
+    const refresh = async () => {
+      if (refreshInProgress) return;
+      refreshInProgress = true;
+      try {
+        const messages = await tursoApi.listMessages<ChatMessageRecord>(conversationId);
+        if (active) listener(messages);
+      } catch (error) {
+        console.warn('Chat message sync notice:', error);
+      } finally {
+        refreshInProgress = false;
+      }
+    };
+    void refresh();
+    const handleFocus = () => void refresh();
+    const interval = window.setInterval(() => void refresh(), 2_500);
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }
+
+  async sendChatMessage(itemId: string, text: string, conversationId?: string): Promise<ConversationRecord> {
+    const conversation = await tursoApi.sendMessage<ConversationRecord>(itemId, text, conversationId);
+    this.conversations = [conversation, ...this.conversations.filter((current) => current.id !== conversation.id)];
+    this.notifyConversations();
+    return conversation;
+  }
+
+  async markConversationRead(conversationId: string): Promise<void> {
+    await tursoApi.markConversationRead(conversationId);
+    this.conversations = this.conversations.map((conversation) => conversation.id !== conversationId
+      ? conversation
+      : auth.currentUser?.uid === conversation.ownerUid
+        ? { ...conversation, ownerUnread: 0 }
+        : { ...conversation, participantUnread: 0 });
+    this.notifyConversations();
+  }
+
+  async deleteConversation(conversationId: string): Promise<void> {
+    await tursoApi.deleteConversation(conversationId);
+    this.conversations = this.conversations.filter((conversation) => conversation.id !== conversationId);
+    this.notifyConversations();
   }
 
   // ---------------- ACTIONS (Instant update + Turso persistence) ----------------
@@ -846,6 +908,7 @@ class RealtimeStore {
   private async logAudit(entry: Omit<AuditLogRecord, 'id' | 'timestamp'>): Promise<void> {
     const log: AuditLogRecord = {
       ...entry,
+      actorId: entry.actorId || auth.currentUser?.uid,
       id: `AUDIT-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       timestamp: new Date().toISOString()
     };
@@ -862,12 +925,17 @@ class RealtimeStore {
     }
   }
 
-  clearAllData(): void {
+  async clearAllData(): Promise<void> {
+    await tursoApi.clearAppData();
+    this.refreshGeneration += 1;
     this.items = [];
     this.claims = [];
     this.potentialMatches = [];
     this.notifications = [];
     this.auditLogs = [];
+    this.reputation = [];
+    this.recoveryReports = [];
+    this.conversations = [];
     if (typeof window !== 'undefined') {
       localStorage.removeItem('foundlink_items');
       localStorage.removeItem('foundlink_claims');
@@ -899,7 +967,18 @@ class RealtimeStore {
       return true;
     });
 
-    return filtered;
+    return filtered.map((record) => type === 'item'
+      ? {
+          ...record,
+          secretDetails: '',
+          reportedBy: {
+            ...(record.reportedBy || {}),
+            email: '',
+            phone: '',
+            idNumber: ''
+          }
+        }
+      : record) as T[];
   }
 
   seedCapstoneDemoData(): void {

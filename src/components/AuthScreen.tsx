@@ -17,6 +17,14 @@ import { authService } from '../services/authService';
 import { UserProfile } from '../types';
 import { PTC_COURSE_GROUPS, PTC_COURSES, PTC_YEAR_LEVELS } from '../utils/ptcPrograms';
 
+const HONESTY_QUOTES = [
+  'Honesty turns small acts of care into lasting trust.',
+  'A truthful word can be the first step toward bringing something home.',
+  'Integrity is what makes a helpful gesture dependable.',
+  'Trust grows when we choose truth, even in the details.',
+  'The right thing is worth doing, even when it goes unseen.'
+];
+
 interface AuthScreenProps {
   onAuthSuccess: (profile: UserProfile) => void;
 }
@@ -24,6 +32,7 @@ interface AuthScreenProps {
 export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
   const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
   const [showPassword, setShowPassword] = useState(false);
+  const [honestyQuote] = useState(() => HONESTY_QUOTES[Math.floor(Math.random() * HONESTY_QUOTES.length)]);
 
   // Blank credentials
   const [email, setEmail] = useState('');
@@ -177,9 +186,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
           </div>
 
           <div className="mt-8 max-w-lg lg:mb-10">
-            <p className="text-[10px] font-bold uppercase text-white/75">Campus community</p>
-            <h1 className="mt-2 text-2xl font-extrabold leading-tight text-white sm:text-3xl lg:text-4xl">PTC FoundLink</h1>
-            <p className="mt-2 text-sm text-white/80">Lost &amp; Found Services</p>
+            <blockquote className="text-xl font-semibold italic leading-relaxed text-white sm:text-2xl lg:text-3xl">
+              &ldquo;{honestyQuote}&rdquo;
+            </blockquote>
           </div>
 
           <div className="hidden border-t border-white/20 pt-4 text-[11px] text-white/70 lg:block">

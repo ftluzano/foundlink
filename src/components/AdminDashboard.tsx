@@ -15,16 +15,19 @@ import {
   Database,
   Users,
   UserPlus,
-  UserMinus
+  UserMinus,
+  Inbox
 } from 'lucide-react';
 import {
   ItemRecord,
   ClaimRecord,
   PotentialMatchRecord,
   AuditLogRecord,
-  OnlineUserRecord
+  OnlineUserRecord,
+  RecoveryReportRecord
 } from '../types';
 import { CUSTODY_LOCATIONS } from '../services/campusLocations';
+import { tursoApi } from '../services/tursoApi';
 
 const PRIMARY_CUSTODIAN_EMAIL = 'ftluzano@paterostechnologicalcollege.edu.ph';
 
@@ -34,6 +37,7 @@ interface AdminDashboardProps {
   matches: PotentialMatchRecord[];
   auditLogs: AuditLogRecord[];
   onlineUsers: OnlineUserRecord[];
+  recoveryReports: RecoveryReportRecord[];
   canManageCustodians: boolean;
   onSetCustodian: (user: OnlineUserRecord, isCustodian: boolean) => Promise<void>;
   onUpdateClaim: (
@@ -45,7 +49,7 @@ interface AdminDashboardProps {
   onUpdateCustody: (id: string, custody: string) => void;
   onDeleteItem: (id: string) => void;
   onOpenItemModal: (item: ItemRecord) => void;
-  onClearAllData: () => void;
+  onClearAllData: () => Promise<void>;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -54,6 +58,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   matches,
   auditLogs,
   onlineUsers,
+  recoveryReports,
   canManageCustodians,
   onSetCustodian,
   onUpdateClaim,
@@ -63,14 +68,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onOpenItemModal,
   onClearAllData
 }) => {
-  const [activeTab, setActiveTab] = useState<'claims' | 'inventory' | 'analytics' | 'audit' | 'users'>('claims');
+  const [activeTab, setActiveTab] = useState<'claims' | 'recovery' | 'inventory' | 'analytics' | 'audit' | 'users'>('claims');
   const [claimFilter, setClaimFilter] = useState<'all' | 'Under Verification' | 'Approved' | 'Returned' | 'Rejected'>('all');
   const [inventorySearch, setInventorySearch] = useState('');
+  const [inventoryType, setInventoryType] = useState<'all' | 'lost' | 'found'>('all');
+  const [inventoryStatus, setInventoryStatus] = useState<'all' | ItemRecord['status']>('all');
+  const [inventoryDate, setInventoryDate] = useState('');
+  const [auditSearch, setAuditSearch] = useState('');
+  const [auditDate, setAuditDate] = useState('');
   const [custodianError, setCustodianError] = useState('');
   const [updatingCustodianId, setUpdatingCustodianId] = useState('');
   const [selectedClaimForReview, setSelectedClaimForReview] = useState<ClaimRecord | null>(null);
+  const [privateVerificationDetail, setPrivateVerificationDetail] = useState('');
+  const [privateVerificationLoading, setPrivateVerificationLoading] = useState(false);
+  const [privateVerificationError, setPrivateVerificationError] = useState('');
   const [reviewNotes, setReviewNotes] = useState('');
   const [pickupSlot, setPickupSlot] = useState('Campus Security Custody Office, Gate 1');
+  const [clearingData, setClearingData] = useState(false);
+  const [clearDataError, setClearDataError] = useState('');
 
   // Metrics
   const totalItems = items.length;
@@ -106,16 +121,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   }, [claims, claimFilter]);
 
   const filteredInventory = useMemo(() => {
-    if (!inventorySearch.trim()) return items;
-    const q = inventorySearch.toLowerCase();
-    return items.filter(
-      (i) =>
-        i.title.toLowerCase().includes(q) ||
-        i.id.toLowerCase().includes(q) ||
-        i.category.toLowerCase().includes(q) ||
-        i.location.toLowerCase().includes(q)
-    );
-  }, [items, inventorySearch]);
+    const query = inventorySearch.trim().toLowerCase();
+    return items.filter((item) => {
+      if (inventoryType !== 'all' && item.type !== inventoryType) return false;
+      if (inventoryStatus !== 'all' && item.status !== inventoryStatus) return false;
+      if (inventoryDate && item.dateTime.slice(0, 10) !== inventoryDate) return false;
+      if (!query) return true;
+      const claimantDetails = claims
+        .filter((claim) => claim.foundItemId === item.id || claim.lostItemId === item.id)
+        .map((claim) => `${claim.claimantName} ${claim.claimantIdNumber} ${claim.claimantEmail}`)
+        .join(' ');
+      return [item.title, item.id, item.category, item.location, item.status, item.type, item.reportedBy.name, claimantDetails]
+        .join(' ')
+        .toLowerCase()
+        .includes(query);
+    });
+  }, [items, claims, inventorySearch, inventoryType, inventoryStatus, inventoryDate]);
+
+  const filteredAuditLogs = useMemo(() => {
+    const query = auditSearch.trim().toLowerCase();
+    return auditLogs.filter((log) => {
+      if (auditDate && log.timestamp.slice(0, 10) !== auditDate) return false;
+      if (!query) return true;
+      return `${log.action} ${log.actorName} ${log.actorRole} ${log.details} ${log.entityId || ''}`
+        .toLowerCase()
+        .includes(query);
+    });
+  }, [auditLogs, auditSearch, auditDate]);
 
   const handleApproveClaim = (claim: ClaimRecord) => {
     onUpdateClaim(
@@ -176,6 +208,34 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
+  const handleOpenClaimReview = async (claim: ClaimRecord) => {
+    setSelectedClaimForReview(claim);
+    setPrivateVerificationDetail('');
+    setPrivateVerificationError('');
+    setPrivateVerificationLoading(true);
+    try {
+      const privateRecord = await tursoApi.getPrivateItemVerification(claim.foundItemId);
+      setPrivateVerificationDetail(privateRecord.secretDetails);
+    } catch (error) {
+      setPrivateVerificationError(error instanceof Error ? error.message : 'Could not load private verification details.');
+    } finally {
+      setPrivateVerificationLoading(false);
+    }
+  };
+
+  const handleClearAllData = async () => {
+    if (!window.confirm('Delete all items, claims, messages, notifications, Up! votes, and reputation? Append-only audit history, user profiles, and custodian access will be kept. This cannot be undone.')) return;
+    setClearDataError('');
+    setClearingData(true);
+    try {
+      await onClearAllData();
+    } catch (error) {
+      setClearDataError(error instanceof Error ? error.message : 'Could not clear site records.');
+    } finally {
+      setClearingData(false);
+    }
+  };
+
   return (
     <div className="space-y-4 pb-12">
       {/* Console Top Toolbar */}
@@ -193,14 +253,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => {
-              if (confirm('Clear all items and claims?')) onClearAllData();
+              void handleClearAllData();
             }}
-            className="flex cursor-pointer items-center gap-1 rounded-md border border-rose-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-rose-700 transition-colors hover:bg-rose-50"
+            disabled={clearingData}
+            className="flex cursor-pointer items-center gap-1 rounded-md border border-rose-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-rose-700 transition-colors hover:bg-rose-50 disabled:cursor-wait disabled:opacity-60"
           >
             <Trash2 className="w-3.5 h-3.5" />
-            <span>Clear All</span>
+            <span>{clearingData ? 'Clearing...' : 'Clear All Records'}</span>
           </button>
         </div>
+        {clearDataError && <p role="alert" className="text-xs font-medium text-rose-700">{clearDataError}</p>}
       </header>
 
       {/* KPI Cards */}
@@ -262,6 +324,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 {pendingClaimsCount}
               </span>
             )}
+          </button>
+
+          <button
+            onClick={() => setActiveTab('recovery')}
+            className={`py-3 border-b-2 flex items-center gap-1.5 transition-colors whitespace-nowrap ${activeTab === 'recovery' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+          >
+            <Inbox className="w-4 h-4" />
+            <span>Recovery Inbox</span>
+            <span className="text-slate-400 font-mono">({recoveryReports.length})</span>
           </button>
 
           <button
@@ -350,8 +421,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             ) : (
               <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg overflow-hidden text-xs">
                 {filteredClaims.map((claim) => {
-                  const targetItem = items.find((i) => i.id === claim.foundItemId);
-
                   return (
                     <div
                       key={claim.id}
@@ -392,32 +461,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         </div>
 
                         <button
-                          onClick={() => setSelectedClaimForReview(claim)}
+                          onClick={() => void handleOpenClaimReview(claim)}
                           className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs font-semibold self-start sm:self-auto"
                         >
                           Verify Claim
                         </button>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px] pt-1 border-t border-slate-100">
-                        <div className="bg-amber-50 p-2 rounded border border-amber-200">
-                          <span className="font-bold text-amber-900 block">
-                            Claimant Verification Key:
-                          </span>
-                          <span className="text-slate-800">
-                            "{claim.secretVerificationAnswer}"
-                          </span>
-                        </div>
-
-                        <div className="bg-slate-50 p-2 rounded border border-slate-200">
-                          <span className="font-bold text-slate-600 block">
-                            Internal Recorded Secret:
-                          </span>
-                          <span className="text-slate-800">
-                            "{targetItem?.secretDetails || 'No private records'}"
-                          </span>
-                        </div>
-                      </div>
                     </div>
                   );
                 })}
@@ -462,7 +512,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         <strong>Claimant Answer:</strong> "{selectedClaimForReview.secretVerificationAnswer}"
                       </div>
                       <div className="text-[11px]">
-                        <strong>Internal Record:</strong> "{items.find((i) => i.id === selectedClaimForReview.foundItemId)?.secretDetails || 'N/A'}"
+                        <strong>Internal Record:</strong>{' '}
+                        {privateVerificationLoading ? 'Loading securely...' : privateVerificationError || privateVerificationDetail || 'No private details recorded.'}
                       </div>
                     </div>
 
@@ -533,19 +584,68 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         )}
 
+        {activeTab === 'recovery' && (
+          <div className="space-y-3 p-4 text-xs">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h2 className="font-bold text-slate-900">Finder reports</h2>
+                <p className="mt-0.5 text-[11px] text-slate-500">Review reports and help post owners confirm recoveries.</p>
+              </div>
+              <span className="font-mono text-slate-500">{recoveryReports.length} reports</span>
+            </div>
+            {recoveryReports.length === 0 ? (
+              <div className="rounded-md border border-dashed border-slate-300 px-4 py-10 text-center text-slate-500">
+                No finder reports are waiting for review.
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100 border-y border-slate-200">
+                {recoveryReports.map((report) => {
+                  const item = items.find((record) => record.id === report.itemId);
+                  return (
+                    <article key={`${report.itemId}:${report.finderUid}`} className="flex flex-wrap items-start justify-between gap-3 py-3">
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="font-bold text-slate-900">{report.itemTitle}</h3>
+                          <span className="font-mono text-[10px] text-slate-400">{report.itemId}</span>
+                        </div>
+                        <p className="text-slate-600">Finder: <strong>{report.finderName}</strong></p>
+                        <p className="text-slate-700">Handoff: {report.handoffDetails}</p>
+                        <p className="text-[10px] text-slate-400">Reported {new Date(report.createdAt).toLocaleString()}</p>
+                      </div>
+                      {item && (
+                        <button type="button" onClick={() => onOpenItemModal(item)} className="shrink-0 rounded-md border border-slate-200 px-2.5 py-1.5 font-semibold text-slate-700 hover:bg-slate-50">
+                          Open case
+                        </button>
+                      )}
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Tab 2: Custody Inventory */}
         {activeTab === 'inventory' && (
           <div className="p-4 space-y-3 text-xs">
-            <div className="flex items-center justify-between gap-3">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
               <input
                 type="text"
                 value={inventorySearch}
                 onChange={(e) => setInventorySearch(e.target.value)}
-                placeholder="Search inventory..."
-                className="w-64 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded"
+                placeholder="Search ID, location, date, or claimant..."
+                className="min-w-0 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded"
               />
-              <span className="font-mono text-slate-500">{filteredInventory.length} items</span>
+              <select value={inventoryType} onChange={(event) => setInventoryType(event.target.value as typeof inventoryType)} className="px-2.5 py-1.5 bg-white border border-slate-200 rounded">
+                <option value="all">All types</option><option value="lost">Lost</option><option value="found">Found</option>
+              </select>
+              <select value={inventoryStatus} onChange={(event) => setInventoryStatus(event.target.value as typeof inventoryStatus)} className="px-2.5 py-1.5 bg-white border border-slate-200 rounded">
+                <option value="all">All statuses</option>
+                {(['Lost', 'Found', 'Potential Match', 'Under Verification', 'Approved', 'Recovered', 'Returned', 'Closed'] as const).map((status) => <option key={status} value={status}>{status}</option>)}
+              </select>
+              <input aria-label="Filter by report date" type="date" value={inventoryDate} onChange={(event) => setInventoryDate(event.target.value)} className="px-2.5 py-1.5 bg-white border border-slate-200 rounded" />
             </div>
+            <p className="text-right font-mono text-slate-500">{filteredInventory.length} items</p>
 
             <div className="border border-slate-200 rounded-lg overflow-x-auto">
               <table className="w-full text-left divide-y divide-slate-200">
@@ -696,12 +796,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {/* Tab 4: Audit */}
         {activeTab === 'audit' && (
           <div className="p-4 space-y-2 text-xs">
-            <span className="font-bold text-slate-900 block">Activity Log</span>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="font-bold text-slate-900">Append-only Case History</span>
+              <span className="text-[10px] text-slate-500">{filteredAuditLogs.length} of {auditLogs.length} events</span>
+            </div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_180px]">
+              <input value={auditSearch} onChange={(event) => setAuditSearch(event.target.value)} placeholder="Search actor, action, case ID, or details..." className="min-w-0 rounded border border-slate-200 px-2.5 py-1.5" />
+              <input aria-label="Filter audit history by date" type="date" value={auditDate} onChange={(event) => setAuditDate(event.target.value)} className="rounded border border-slate-200 px-2.5 py-1.5" />
+            </div>
             <div className="border border-slate-200 rounded-lg overflow-hidden divide-y divide-slate-100">
-              {auditLogs.length === 0 ? (
-                <div className="p-4 text-center text-slate-400">No logs recorded.</div>
+              {filteredAuditLogs.length === 0 ? (
+                <div className="p-4 text-center text-slate-400">No matching case history.</div>
               ) : (
-                auditLogs.map((log) => (
+                filteredAuditLogs.map((log) => (
                   <div key={log.id} className="p-2.5 flex items-center justify-between gap-2">
                     <div>
                       <span className="font-semibold text-slate-900">{log.action}</span>
@@ -709,7 +816,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       <div className="text-[11px] text-slate-600">{log.details}</div>
                     </div>
                     <span className="font-mono text-[10px] text-slate-400 shrink-0">
-                      {new Date(log.timestamp).toLocaleTimeString()}
+                      {new Date(log.timestamp).toLocaleString()}
                     </span>
                   </div>
                 ))

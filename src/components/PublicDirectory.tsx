@@ -12,13 +12,10 @@ import {
   ArrowUpDown,
   Filter,
   X,
-  ThumbsUp,
-  Heart,
-  Sparkles,
+  ArrowUp,
   MessageCircle,
-  Send
 } from 'lucide-react';
-import { ItemComment, ItemReaction, ItemReactionType, ItemRecord, ItemType, UserProfile } from '../types';
+import { ItemUpRecord, ItemRecord, ItemType, UserProfile } from '../types';
 import { CAMPUS_LOCATIONS, ITEM_CATEGORIES } from '../services/campusLocations';
 import { realtimeStore } from '../services/realtimeStore';
 
@@ -30,6 +27,8 @@ interface PublicDirectoryProps {
   onSelectItem: (item: ItemRecord) => void;
   onOpenReportModal: (type: ItemType) => void;
   onOpenClaimModal: (item: ItemRecord) => void;
+  currentUserUid: string;
+  onOpenChat: (item: ItemRecord) => void;
 }
 
 export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
@@ -39,7 +38,9 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
   onMarkRecovered,
   onSelectItem,
   onOpenReportModal,
-  onOpenClaimModal
+  onOpenClaimModal,
+  currentUserUid,
+  onOpenChat
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | 'lost' | 'found'>('all');
@@ -90,6 +91,8 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
         return true;
       })
       .sort((a, b) => {
+        const upDifference = Number(b.upCount || 0) - Number(a.upCount || 0);
+        if (upDifference !== 0) return upDifference;
         const timeA = new Date(a.dateTime).getTime();
         const timeB = new Date(b.dateTime).getTime();
         return sortBy === 'newest' ? timeB - timeA : timeA - timeB;
@@ -240,8 +243,8 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
               onChange={(e) => setSortBy(e.target.value as 'newest' | 'oldest')}
               className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-hidden"
             >
-              <option value="newest">Newest</option>
-              <option value="oldest">Oldest</option>
+              <option value="newest">Top Up! · Newest</option>
+              <option value="oldest">Top Up! · Oldest</option>
             </select>
 
             <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
@@ -393,6 +396,8 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
               onMarkRecovered={onMarkRecovered}
               onSelect={() => onSelectItem(item)}
               onClaim={() => onOpenClaimModal(item)}
+              currentUserUid={currentUserUid}
+              onOpenChat={() => onOpenChat(item)}
             />
           ))}
         </div>
@@ -407,6 +412,7 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
                 <th className="px-3 py-3">Status</th>
                 <th className="px-3 py-3">Location</th>
                 <th className="px-3 py-3">Date</th>
+                <th className="px-3 py-3">Up!</th>
                 <th className="px-4 py-3 text-right">Action</th>
               </tr>
             </thead>
@@ -439,6 +445,7 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
                   <td className="px-3 py-3 text-slate-500 font-mono tabular-nums whitespace-nowrap">
                     {new Date(item.dateTime).toLocaleDateString()}
                   </td>
+                  <td className="px-3 py-3"><ItemUpButton item={item} currentUserUid={currentUserUid} /></td>
                   <td className="px-4 py-3 text-right whitespace-nowrap">
                     <button
                       onClick={() => onSelectItem(item)}
@@ -452,6 +459,11 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
                         className="text-emerald-700 hover:text-emerald-800 font-bold cursor-pointer"
                       >
                         Claim
+                      </button>
+                    )}
+                    {item.reportedBy.uid !== currentUserUid && (
+                      <button type="button" onClick={() => onOpenChat(item)} className="ml-3 text-[#174a32] hover:text-[#103b28] font-semibold">
+                        Chat
                       </button>
                     )}
                     {item.type === 'lost' && item.status !== 'Returned' && item.status !== 'Recovered' && (
@@ -534,52 +546,12 @@ interface ModernItemCardProps {
   onMarkRecovered: (item: ItemRecord) => Promise<void>;
   onSelect: () => void;
   onClaim: () => void;
+  currentUserUid: string;
+  onOpenChat: () => void;
 }
 
-const ModernItemCard: React.FC<ModernItemCardProps> = ({ item, userProfile, onReportFound, onMarkRecovered, onSelect, onClaim }) => {
-  const [comments, setComments] = useState<ItemComment[]>([]);
-  const [reactions, setReactions] = useState<ItemReaction[]>([]);
-  const [commentText, setCommentText] = useState('');
-  const [commentsOpen, setCommentsOpen] = useState(false);
-  const [socialError, setSocialError] = useState('');
-  const [isSendingComment, setIsSendingComment] = useState(false);
+const ModernItemCard: React.FC<ModernItemCardProps> = ({ item, userProfile, onReportFound, onMarkRecovered, onSelect, onClaim, currentUserUid, onOpenChat }) => {
   const isLost = item.type === 'lost';
-
-  useEffect(() => realtimeStore.subscribeItemSocial(item.id, (nextComments, nextReactions) => {
-    setComments(nextComments);
-    setReactions(nextReactions);
-  }), [item.id]);
-
-  const currentReaction = reactions.find((reaction) => reaction.userId === userProfile.uid)?.type;
-  const reactionCounts = reactions.reduce<Record<ItemReactionType, number>>((counts, reaction) => {
-    counts[reaction.type] += 1;
-    return counts;
-  }, { like: 0, love: 0, support: 0 });
-
-  const handleReact = async (type: ItemReactionType) => {
-    setSocialError('');
-    try {
-      await realtimeStore.setItemReaction(item.id, currentReaction === type ? null : type, userProfile.name);
-    } catch (error) {
-      setSocialError(error instanceof Error ? error.message : 'Could not save reaction.');
-    }
-  };
-
-  const handleCommentSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!commentText.trim()) return;
-
-    setIsSendingComment(true);
-    setSocialError('');
-    try {
-      await realtimeStore.createItemComment(item.id, userProfile.name, commentText);
-      setCommentText('');
-    } catch (error) {
-      setSocialError(error instanceof Error ? error.message : 'Could not post comment.');
-    } finally {
-      setIsSendingComment(false);
-    }
-  };
 
   const statusBadgeStyle = {
     Lost: 'bg-rose-50 text-rose-700 border-rose-200/80',
@@ -676,77 +648,13 @@ const ModernItemCard: React.FC<ModernItemCardProps> = ({ item, userProfile, onRe
         )}
       </div>
 
-      <div className="px-4 py-3 border-t border-slate-100">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => handleReact('like')}
-              aria-pressed={currentReaction === 'like'}
-              className={`inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-[11px] font-semibold transition-colors ${currentReaction === 'like' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-100'}`}
-              title="Like this post"
-            >
-              <ThumbsUp className="h-3.5 w-3.5" /> Like {reactionCounts.like || ''}
-            </button>
-            <button
-              type="button"
-              onClick={() => handleReact('love')}
-              aria-pressed={currentReaction === 'love'}
-              className={`inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-[11px] font-semibold transition-colors ${currentReaction === 'love' ? 'bg-rose-50 text-rose-700' : 'text-slate-600 hover:bg-slate-100'}`}
-              title="Love this post"
-            >
-              <Heart className="h-3.5 w-3.5" /> Love {reactionCounts.love || ''}
-            </button>
-            <button
-              type="button"
-              onClick={() => handleReact('support')}
-              aria-pressed={currentReaction === 'support'}
-              className={`inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-[11px] font-semibold transition-colors ${currentReaction === 'support' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-600 hover:bg-slate-100'}`}
-              title="Show support for this post"
-            >
-              <Sparkles className="h-3.5 w-3.5" /> Support {reactionCounts.support || ''}
-            </button>
-          </div>
-          <button
-            type="button"
-            onClick={() => setCommentsOpen((open) => !open)}
-            className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1.5 text-[11px] font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800"
-          >
-            <MessageCircle className="h-3.5 w-3.5" /> {comments.length} comments
+      <div className="flex items-center justify-between gap-2 border-t border-slate-100 px-4 py-2.5">
+        <ItemUpButton item={item} currentUserUid={currentUserUid} />
+        {item.reportedBy.uid !== currentUserUid ? (
+          <button type="button" onClick={onOpenChat} className="inline-flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-semibold text-[#174a32] transition-colors hover:bg-emerald-50" title="Message the post owner">
+            <MessageCircle className="h-3.5 w-3.5" /> Chat
           </button>
-        </div>
-
-        {socialError && <p role="alert" className="mt-2 text-[11px] text-rose-600">{socialError}</p>}
-
-        {commentsOpen && (
-          <div className="mt-3 space-y-2.5">
-            {comments.map((comment) => (
-              <div key={comment.id} className="rounded-md bg-slate-50 px-3 py-2">
-                <p className="text-[11px] font-semibold text-slate-800">{comment.authorName}</p>
-                <p className="mt-0.5 whitespace-pre-wrap break-words text-xs text-slate-600">{comment.text}</p>
-              </div>
-            ))}
-            <form onSubmit={handleCommentSubmit} className="flex items-center gap-2">
-              <input
-                value={commentText}
-                onChange={(event) => setCommentText(event.target.value)}
-                maxLength={500}
-                placeholder="Write a comment..."
-                aria-label="Write a comment"
-                className="min-w-0 flex-1 rounded-md border border-slate-200 px-3 py-2 text-xs outline-none focus:border-slate-400"
-              />
-              <button
-                type="submit"
-                disabled={!commentText.trim() || isSendingComment}
-                aria-label="Post comment"
-                title="Post comment"
-                className="rounded-md bg-slate-900 p-2 text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <Send className="h-3.5 w-3.5" />
-              </button>
-            </form>
-          </div>
-        )}
+        ) : <span className="text-[10px] font-medium text-slate-400">Your post</span>}
       </div>
 
       {/* Card Action footer */}
@@ -784,6 +692,38 @@ const ModernItemCard: React.FC<ModernItemCardProps> = ({ item, userProfile, onRe
         )}
       </div>
     </div>
+  );
+};
+
+const ItemUpButton: React.FC<{ item: ItemRecord; currentUserUid: string }> = ({ item, currentUserUid }) => {
+  const [isUpvoted, setIsUpvoted] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => realtimeStore.subscribeItemUps(item.id, (votes: ItemUpRecord[]) => {
+    setIsUpvoted(votes.some((vote) => vote.userId === currentUserUid));
+  }), [item.id, currentUserUid]);
+
+  const toggle = async () => {
+    setIsSaving(true);
+    setError('');
+    try {
+      const result = await realtimeStore.toggleItemUp(item.id);
+      setIsUpvoted(result.upvoted);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not save Up!.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <span className="inline-flex flex-col items-start">
+      <button type="button" onClick={() => void toggle()} disabled={isSaving || !currentUserUid} aria-pressed={isUpvoted} title={!currentUserUid ? 'Sign in to use Up!' : isUpvoted ? 'Remove your Up!' : 'Upvote this post'} className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-bold transition-colors disabled:opacity-60 ${isUpvoted ? 'bg-emerald-100 text-emerald-900' : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-800'}`}>
+        <ArrowUp className="h-3.5 w-3.5" /> Up! <span className="tabular-nums">{item.upCount || 0}</span>
+      </button>
+      {error && <span role="alert" className="mt-1 text-[9px] text-rose-600">{error}</span>}
+    </span>
   );
 };
 

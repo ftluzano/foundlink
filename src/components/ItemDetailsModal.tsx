@@ -3,14 +3,11 @@ import {
   X,
   MapPin,
   Calendar,
-  Lock,
-  HandHelping,
   Sparkles,
   Trash2,
   Building,
-  User,
-  Phone,
-  CheckCircle2
+  CheckCircle2,
+  MessageSquare
 } from 'lucide-react';
 import { ItemRecord, PotentialMatchRecord } from '../types';
 import { CUSTODY_LOCATIONS } from '../services/campusLocations';
@@ -25,6 +22,8 @@ interface ItemDetailsModalProps {
   onUpdateStatus: (id: string, status: ItemRecord['status']) => void;
   onUpdateCustody: (id: string, custody: string) => void;
   onDeleteItem: (id: string) => void;
+  currentUserUid: string;
+  onMessageOwner: (item: ItemRecord) => void;
 }
 
 export const ItemDetailsModal: React.FC<ItemDetailsModalProps> = ({
@@ -36,7 +35,9 @@ export const ItemDetailsModal: React.FC<ItemDetailsModalProps> = ({
   userRole,
   onUpdateStatus,
   onUpdateCustody,
-  onDeleteItem
+  onDeleteItem,
+  currentUserUid,
+  onMessageOwner
 }) => {
   const [selectedCustody, setSelectedCustody] = useState(item.custodyLocation || CUSTODY_LOCATIONS[0]);
 
@@ -101,27 +102,6 @@ export const ItemDetailsModal: React.FC<ItemDetailsModalProps> = ({
               </span>
               <p className="text-slate-900">{item.custodyLocation || 'N/A'}</p>
             </div>
-          </div>
-
-          {/* RA 10173 Secret Identification */}
-          <div className="p-3 rounded-lg bg-slate-900 text-white space-y-1.5">
-            <div className="flex items-center justify-between">
-              <span className="font-bold flex items-center gap-1.5 text-emerald-400">
-                <Lock className="w-3.5 h-3.5" />
-                <span>Protected Verification Record</span>
-              </span>
-              <span className="text-[10px] text-slate-400">RA 10173 Protected</span>
-            </div>
-
-            {userRole === 'admin' ? (
-              <div className="p-2 bg-slate-950 rounded border border-slate-800 font-mono text-[11px] text-slate-200">
-                {item.secretDetails || 'No private records logged'}
-              </div>
-            ) : (
-              <div className="text-slate-400 text-[11px]">
-                Hidden to protect against fraudulent claims. Disclosed only during officer interview.
-              </div>
-            )}
           </div>
 
           {/* Matches */}
@@ -223,6 +203,16 @@ export const ItemDetailsModal: React.FC<ItemDetailsModalProps> = ({
           </span>
 
           <div className="flex items-center gap-2">
+            {item.reportedBy.uid && item.reportedBy.uid !== currentUserUid && (
+              <button
+                type="button"
+                onClick={() => onMessageOwner(item)}
+                className="inline-flex items-center gap-1.5 rounded-md bg-[#174a32] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#103b28]"
+              >
+                <MessageSquare className="h-3.5 w-3.5" />
+                Message poster
+              </button>
+            )}
             {item.type === 'found' && item.status !== 'Returned' && (
               <button
                 onClick={() => onClaim(item)}

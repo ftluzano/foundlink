@@ -9,7 +9,8 @@ import {
   UserProfile,
   OnlineUserRecord,
   ReputationRecord,
-  RecoveryReportRecord
+  RecoveryReportRecord,
+  ConversationRecord
 } from './types';
 import { realtimeStore } from './services/realtimeStore';
 import { authService } from './services/authService';
@@ -27,6 +28,8 @@ import { ProfileSettingsModal } from './components/ProfileSettingsModal';
 import { AuthScreen } from './components/AuthScreen';
 import { CommunityDashboard } from './components/CommunityDashboard';
 import { RecoveryVerificationModal } from './components/RecoveryVerificationModal';
+import { MessagesDashboard } from './components/MessagesDashboard';
+import { ChatThreadModal } from './components/ChatThreadModal';
 import { CheckCircle2 } from 'lucide-react';
 
 const CUSTODIAN_EMAIL = 'ftluzano@paterostechnologicalcollege.edu.ph';
@@ -41,6 +44,8 @@ export default function App() {
   const [notifications, setNotifications] = useState<NotificationRecord[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogRecord[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<OnlineUserRecord[]>([]);
+  const [recoveryReports, setRecoveryReports] = useState<RecoveryReportRecord[]>([]);
+  const [conversations, setConversations] = useState<ConversationRecord[]>([]);
   const [reputation, setReputation] = useState<ReputationRecord[]>([]);
   const [firebaseUid, setFirebaseUid] = useState(() => authService.getCurrentUser()?.uid || '');
   const toastedRecoveryIds = useRef(new Set<string>());
@@ -71,7 +76,7 @@ export default function App() {
   });
 
   // Navigation & Role State
-  const [currentTab, setCurrentTab] = useState<'directory' | 'claims' | 'admin' | 'my-reports' | 'community'>('directory');
+  const [currentTab, setCurrentTab] = useState<'directory' | 'claims' | 'admin' | 'my-reports' | 'community' | 'messages'>('directory');
   const [userRole, setUserRole] = useState<'student' | 'admin'>(() => resolveUserRole());
   const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('foundlink_theme') === 'dark');
 
@@ -115,6 +120,12 @@ export default function App() {
   const [recoveryVerification, setRecoveryVerification] = useState<{
     item: ItemRecord;
     reports: RecoveryReportRecord[];
+  } | null>(null);
+  const [activeChat, setActiveChat] = useState<{
+    itemId: string;
+    itemTitle: string;
+    itemType: ItemType;
+    conversation?: ConversationRecord;
   } | null>(null);
 
   // Modern Toast feedback
@@ -161,6 +172,8 @@ export default function App() {
     const unsubMatches = realtimeStore.subscribeMatches(setMatches);
     const unsubAudit = realtimeStore.subscribeAuditLogs(setAuditLogs);
     const unsubReputation = realtimeStore.subscribeReputation(setReputation);
+    const unsubRecoveryReports = realtimeStore.subscribeRecoveryReports(setRecoveryReports);
+    const unsubConversations = realtimeStore.subscribeConversations(setConversations);
 
     return () => {
       unsubItems();
@@ -168,6 +181,8 @@ export default function App() {
       unsubMatches();
       unsubAudit();
       unsubReputation();
+      unsubRecoveryReports();
+      unsubConversations();
     };
   }, []);
 
@@ -290,6 +305,15 @@ export default function App() {
     showToast(finderUid ? 'Recovery confirmed. Reputation awarded to the finder.' : 'Your post is now marked as recovered.');
   };
 
+  const handleOpenItemChat = (item: ItemRecord) => {
+    const conversation = conversations.find((candidate) =>
+      candidate.itemId === item.id &&
+      (candidate.ownerUid === firebaseUid || candidate.participantUid === firebaseUid)
+    );
+    setSelectedItemForDetails(null);
+    setActiveChat({ itemId: item.id, itemTitle: item.title, itemType: item.type, conversation });
+  };
+
   const handleSetCustodian = async (onlineUser: OnlineUserRecord, isCustodian: boolean) => {
     await realtimeStore.setCustodian(onlineUser.uid, onlineUser.name, onlineUser.email, isCustodian);
     showToast(isCustodian ? `${onlineUser.name} is now a Custodian.` : `Custodian access removed for ${onlineUser.name}.`);
@@ -388,6 +412,9 @@ export default function App() {
         isDarkMode={isDarkMode}
         onToggleDarkMode={() => setIsDarkMode((dark) => !dark)}
         notifications={notifications}
+        messagesUnreadCount={conversations.reduce((total, conversation) => total + (
+          conversation.ownerUid === firebaseUid ? conversation.ownerUnread : conversation.participantUnread
+        ), 0)}
         onOpenNotifications={() => setNotificationsOpen(true)}
         userProfile={userProfile}
         onOpenProfileModal={() => setProfileModalOpen(true)}
@@ -405,6 +432,8 @@ export default function App() {
             onSelectItem={setSelectedItemForDetails}
             onOpenReportModal={handleOpenReportModal}
             onOpenClaimModal={(foundItem) => setSelectedItemForClaim({ found: foundItem })}
+            currentUserUid={firebaseUid}
+            onOpenChat={handleOpenItemChat}
           />
         )}
 
@@ -424,6 +453,20 @@ export default function App() {
           <CommunityDashboard reputation={reputation} userUid={firebaseUid} />
         )}
 
+        {currentTab === 'messages' && (
+          <MessagesDashboard
+            conversations={conversations}
+            userUid={firebaseUid}
+            onBrowsePosts={() => setCurrentTab('directory')}
+            onOpenConversation={(conversation) => setActiveChat({
+              itemId: conversation.itemId,
+              itemTitle: conversation.itemTitle,
+              itemType: conversation.itemType,
+              conversation
+            })}
+          />
+        )}
+
         {currentTab === 'admin' && userRole === 'admin' && (
           <AdminDashboard
             items={items}
@@ -431,6 +474,7 @@ export default function App() {
             matches={matches}
             auditLogs={auditLogs}
             onlineUsers={onlineUsers}
+            recoveryReports={recoveryReports}
             canManageCustodians={authService.getCurrentUser()?.email?.trim().toLowerCase() === CUSTODIAN_EMAIL}
             onSetCustodian={handleSetCustodian}
             onUpdateClaim={handleUpdateClaim}
@@ -438,9 +482,9 @@ export default function App() {
             onUpdateCustody={handleUpdateCustody}
             onDeleteItem={handleDeleteItem}
             onOpenItemModal={setSelectedItemForDetails}
-            onClearAllData={() => {
-              realtimeStore.clearAllData();
-              showToast('Database reset');
+            onClearAllData={async () => {
+              await realtimeStore.clearAllData();
+              showToast('Operational records cleared. Audit history was preserved.');
             }}
           />
         )}
@@ -480,9 +524,24 @@ export default function App() {
           }}
           potentialMatches={matches}
           userRole={userRole}
+          currentUserUid={firebaseUid}
+          onMessageOwner={handleOpenItemChat}
           onUpdateStatus={handleUpdateStatus}
           onUpdateCustody={handleUpdateCustody}
           onDeleteItem={handleDeleteItem}
+        />
+      )}
+
+      {activeChat && (
+        <ChatThreadModal
+          key={activeChat.conversation?.id || activeChat.itemId}
+          itemId={activeChat.itemId}
+          itemTitle={activeChat.itemTitle}
+          itemType={activeChat.itemType}
+          currentUserUid={firebaseUid}
+          currentUserName={userProfile.name}
+          initialConversation={activeChat.conversation}
+          onClose={() => setActiveChat(null)}
         />
       )}
 
@@ -536,6 +595,15 @@ export default function App() {
           onSelectNotificationItem={(itemId) => {
             const it = items.find((i) => i.id === itemId);
             if (it) setSelectedItemForDetails(it);
+          }}
+          onSelectNotificationConversation={(conversationId) => {
+            const conversation = conversations.find((entry) => entry.id === conversationId);
+            if (conversation) setActiveChat({
+              itemId: conversation.itemId,
+              itemTitle: conversation.itemTitle,
+              itemType: conversation.itemType,
+              conversation
+            });
           }}
         />
       )}

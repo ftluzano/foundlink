@@ -9,19 +9,21 @@ import {
   LogOut,
   Moon,
   Sun,
-  Award
+  Award,
+  MessageSquare
 } from 'lucide-react';
 import ptcLogo from '../assets/images/ptc.jpg';
 import { NotificationRecord, UserProfile } from '../types';
 
 interface NavbarProps {
-  currentTab: 'directory' | 'claims' | 'admin' | 'my-reports' | 'community';
-  onSelectTab: (tab: 'directory' | 'claims' | 'admin' | 'my-reports' | 'community') => void;
+  currentTab: 'directory' | 'claims' | 'admin' | 'my-reports' | 'community' | 'messages';
+  onSelectTab: (tab: 'directory' | 'claims' | 'admin' | 'my-reports' | 'community' | 'messages') => void;
   onOpenReportModal: (defaultType: 'lost' | 'found') => void;
   userRole: 'student' | 'admin';
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
   notifications: NotificationRecord[];
+  messagesUnreadCount?: number;
   onOpenNotifications: () => void;
   userProfile: UserProfile;
   onOpenProfileModal: () => void;
@@ -36,6 +38,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   isDarkMode,
   onToggleDarkMode,
   notifications,
+  messagesUnreadCount = 0,
   onOpenNotifications,
   userProfile,
   onOpenProfileModal,
@@ -110,6 +113,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <Award className="w-3.5 h-3.5" />
                     <span>Reputation</span>
                   </button>
+                  <button
+                    onClick={() => onSelectTab('messages')}
+                    className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition-colors cursor-pointer ${currentTab === 'messages' ? 'bg-[#e7f0e9] text-[#174a32] font-bold' : 'text-slate-600 hover:text-[#174a32] hover:bg-emerald-50'}`}
+                  >
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    <span>Messages</span>
+                    {messagesUnreadCount > 0 && <span className="rounded-full bg-emerald-700 px-1.5 py-0.5 text-[9px] text-white">{messagesUnreadCount}</span>}
+                  </button>
                 </>
               ) : (
                 <>
@@ -142,6 +153,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                   >
                     <Award className="w-3.5 h-3.5" />
                     <span>Reputation</span>
+                  </button>
+                  <button
+                    onClick={() => onSelectTab('messages')}
+                    className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition-colors cursor-pointer ${currentTab === 'messages' ? 'bg-[#e7f0e9] text-[#174a32] font-bold' : 'text-slate-600 hover:text-[#174a32] hover:bg-emerald-50'}`}
+                  >
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    <span>Messages</span>
+                    {messagesUnreadCount > 0 && <span className="rounded-full bg-emerald-700 px-1.5 py-0.5 text-[9px] text-white">{messagesUnreadCount}</span>}
                   </button>
                 </>
               )}
@@ -240,11 +259,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           </div>
           <nav className="flex items-center gap-1 overflow-x-auto border-t border-slate-100 pt-2 text-[11px] font-semibold lg:hidden">
-            {([
-              ['directory', 'Directory'],
-              ['claims', 'My activity'],
-              ['community', 'Reputation']
-            ] as const).map(([tab, label]) => (
+            {(userRole === 'admin'
+              ? ([['admin', 'Custodian'], ['directory', 'Directory'], ['messages', 'Messages'], ['community', 'Reputation']] as const)
+              : ([['directory', 'Directory'], ['claims', 'My activity'], ['messages', 'Messages'], ['community', 'Reputation']] as const)
+            ).map(([tab, label]) => (
               <button
                 key={tab}
                 type="button"
