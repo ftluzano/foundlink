@@ -7,8 +7,8 @@ import {
   onAuthStateChanged,
   User
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
-import { auth, db, googleProvider } from './firebase';
+import { auth, googleProvider } from './firebase';
+import { tursoApi } from './tursoApi';
 import { UserProfile, UserRole } from '../types';
 
 const DEFAULT_CUSTODIAN_EMAILS = new Set(['ftluzano@paterostechnologicalcollege.edu.ph']);
@@ -46,7 +46,7 @@ export const authService = {
   },
 
   /**
-   * Register with Email & Password and store Profile in Firestore
+  * Register with Firebase Auth and store the profile in Turso
    */
   async register(
     email: string,
@@ -69,19 +69,11 @@ export const authService = {
         photoBase64: profileData.photoBase64 || ''
       };
 
-      // Upload to Firestore
+      // Store the profile in Turso; Firebase remains the identity provider.
       try {
-        await setDoc(
-          doc(db, 'users', uid),
-          {
-            ...userProfile,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          },
-          { merge: true }
-        );
+        await tursoApi.create('users', uid, { ...userProfile, role: 'student', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
       } catch (err) {
-        console.warn('Firestore user write fallback:', err);
+        console.warn('Turso user write fallback:', err);
       }
 
       return userProfile;
@@ -196,7 +188,7 @@ export const authService = {
       const res = await signInWithPopup(auth, googleProvider);
       const user = res.user;
 
-      // Check if profile exists in Firestore
+      // Check if a profile exists in Turso.
       const existing = await this.getUserProfile(user.uid);
       if (existing) {
         return { ...existing, role: resolveUserRole(user.email || '') };
@@ -216,17 +208,14 @@ export const authService = {
       };
 
       try {
-        await setDoc(
-          doc(db, 'users', user.uid),
-          {
-            ...newProfile,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          },
-          { merge: true }
-        );
+        await tursoApi.create('users', user.uid, {
+          ...newProfile,
+          role: 'student',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
       } catch (err) {
-        console.warn('Firestore Google user write fallback:', err);
+        console.warn('Turso Google user write fallback:', err);
       }
 
       return newProfile;
@@ -272,53 +261,50 @@ export const authService = {
   },
 
   /**
-   * Fetch user profile from Firestore
+  * Fetch the signed-in user's profile from Turso
    */
   async getUserProfile(uid: string): Promise<UserProfile | null> {
     try {
-      const snap = await getDoc(doc(db, 'users', uid));
-      if (snap.exists()) {
-        const profile = snap.data() as UserProfile;
+      const profiles = await tursoApi.list<UserProfile>('users');
+      const profile = profiles.find((candidate) => candidate.uid === uid);
+      if (profile) {
         return { ...profile, role: resolveUserRole(auth.currentUser?.email || profile.email) };
       }
     } catch (err) {
-      console.warn('Failed to load profile from Firestore:', err);
+      console.warn('Failed to load profile from Turso:', err);
     }
     return null;
   },
 
   /**
-   * Save / Update user profile in Firestore
+  * Save or update the signed-in user's profile in Turso
    */
   async saveUserProfile(uid: string, profile: UserProfile): Promise<void> {
     try {
       const { role: _role, ...profileFields } = profile;
-      await setDoc(
-        doc(db, 'users', uid),
-        {
-          ...profileFields,
-          updatedAt: new Date().toISOString()
-        },
-        { merge: true }
-      );
+      await tursoApi.save('users', uid, { ...profileFields, uid, role: 'student', updatedAt: new Date().toISOString() });
     } catch (err) {
-      console.warn('Failed to save profile to Firestore:', err);
+      console.warn('Failed to save profile to Turso:', err);
     }
   },
 
   /**
-   * Real-time listener for user profile updates in Firestore
+  * Poll Turso for user profile updates
    */
   subscribeUserProfile(uid: string, callback: (profile: UserProfile | null) => void) {
     try {
-      return onSnapshot(doc(db, 'users', uid), (snap) => {
-        if (snap.exists()) {
-          const profile = snap.data() as UserProfile;
-          callback({ ...profile, role: resolveUserRole(auth.currentUser?.email || profile.email) });
-        } else {
-          callback(null);
-        }
-      });
+      let active = true;
+      const refresh = () => {
+        void this.getUserProfile(uid).then((profile) => {
+          if (active) callback(profile);
+        });
+      };
+      refresh();
+      const interval = window.setInterval(refresh, 15_000);
+      return () => {
+        active = false;
+        window.clearInterval(interval);
+      };
     } catch (err) {
       console.warn('subscribeUserProfile fallback:', err);
       return () => {};

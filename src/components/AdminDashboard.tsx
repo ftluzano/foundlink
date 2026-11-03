@@ -46,7 +46,6 @@ interface AdminDashboardProps {
   onDeleteItem: (id: string) => void;
   onOpenItemModal: (item: ItemRecord) => void;
   onClearAllData: () => void;
-  onOpenFirebaseModal: () => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -62,8 +61,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onUpdateCustody,
   onDeleteItem,
   onOpenItemModal,
-  onClearAllData,
-  onOpenFirebaseModal
+  onClearAllData
 }) => {
   const [activeTab, setActiveTab] = useState<'claims' | 'inventory' | 'analytics' | 'audit' | 'users'>('claims');
   const [claimFilter, setClaimFilter] = useState<'all' | 'Under Verification' | 'Approved' | 'Returned' | 'Rejected'>('all');

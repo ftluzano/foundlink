@@ -8,14 +8,15 @@ import {
   Settings,
   LogOut,
   Moon,
-  Sun
+  Sun,
+  Award
 } from 'lucide-react';
 import ptcLogo from '../assets/images/ptc.jpg';
 import { NotificationRecord, UserProfile } from '../types';
 
 interface NavbarProps {
-  currentTab: 'directory' | 'claims' | 'admin' | 'my-reports';
-  onSelectTab: (tab: 'directory' | 'claims' | 'admin' | 'my-reports') => void;
+  currentTab: 'directory' | 'claims' | 'admin' | 'my-reports' | 'community';
+  onSelectTab: (tab: 'directory' | 'claims' | 'admin' | 'my-reports' | 'community') => void;
   onOpenReportModal: (defaultType: 'lost' | 'found') => void;
   userRole: 'student' | 'admin';
   isDarkMode: boolean;
@@ -101,6 +102,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                   >
                     My Claims & Activity
                   </button>
+                  <button
+                    onClick={() => onSelectTab('community')}
+                    className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition-colors cursor-pointer ${currentTab === 'community' ? 'bg-slate-100 text-slate-900 font-bold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'}`}
+                  >
+                    <Award className="w-3.5 h-3.5" />
+                    <span>Reputation</span>
+                  </button>
                 </>
               ) : (
                 <>
@@ -127,6 +135,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <Package className="w-3.5 h-3.5" />
                     <span>All Items Directory</span>
                   </button>
+                  <button
+                    onClick={() => onSelectTab('community')}
+                    className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition-colors cursor-pointer ${currentTab === 'community' ? 'bg-slate-100 text-slate-900 font-bold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'}`}
+                  >
+                    <Award className="w-3.5 h-3.5" />
+                    <span>Reputation</span>
+                  </button>
                 </>
               )}
             </nav>
@@ -145,16 +160,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="sm:hidden">Lost</span>
               </button>
 
-              {userRole === 'admin' && (
-                <button
-                  onClick={() => onOpenReportModal('found')}
-                  className="px-2.5 py-1.5 sm:px-3 text-[10px] sm:text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-md transition-colors shadow-xs flex items-center gap-1 cursor-pointer shrink-0"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Found Item</span>
-                  <span className="sm:hidden">Found</span>
-                </button>
-              )}
+              <button
+                onClick={() => onOpenReportModal('found')}
+                className="px-2.5 py-1.5 sm:px-3 text-[10px] sm:text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-md transition-colors shadow-xs flex items-center gap-1 cursor-pointer shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Found Item</span>
+                <span className="sm:hidden">Found</span>
+              </button>
             </div>
 
             {/* Notification Bell */}
@@ -225,6 +238,22 @@ export const Navbar: React.FC<NavbarProps> = ({
               <LogOut className="w-3.5 h-3.5" />
             </button>
           </div>
+          <nav className="flex md:hidden items-center gap-1 overflow-x-auto border-t border-slate-100 pt-2 text-[11px] font-semibold">
+            {([
+              ['directory', 'Directory'],
+              ['claims', 'My activity'],
+              ['community', 'Reputation']
+            ] as const).map(([tab, label]) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => onSelectTab(tab)}
+                className={`shrink-0 rounded-md px-3 py-1.5 transition-colors ${currentTab === tab ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </nav>
         </div>
       </div>
     </header>

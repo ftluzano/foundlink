@@ -20,6 +20,24 @@ export interface OnlineUserRecord {
   isCustodian: boolean;
 }
 
+export interface ReputationRecord {
+  uid: string;
+  name: string;
+  points: number;
+  verifiedRecoveries: number;
+  returnedSurrenders: number;
+}
+
+export interface RecoveryReportRecord {
+  itemId: string;
+  itemTitle: string;
+  ownerUid: string;
+  finderUid: string;
+  finderName: string;
+  handoffDetails: string;
+  createdAt: string;
+}
+
 export type ItemType = 'lost' | 'found';
 
 export type ItemStatus =
@@ -184,13 +202,3 @@ export interface AuditLogRecord {
   complianceTag?: 'RA_10173_DATA_PRIVACY' | 'CUSTODY_HANDOVER' | 'CASE_MODIFICATION' | string;
 }
 
-export interface FirebaseConfigBridge {
-  projectId: string;
-  apiKey: string;
-  authDomain: string;
-  storageBucket: string;
-  messagingSenderId: string;
-  appId: string;
-  isConnected?: boolean;
-  lastSyncAt?: string;
-}

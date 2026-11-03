@@ -74,7 +74,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         onAuthSuccess(profile);
         onClose();
       } else {
-        // Fallback profile if Firestore doc was empty
+        // Fallback profile if the Turso profile was empty.
         const fallback: UserProfile = {
           name: email.split('@')[0],
           course: 'BS in Information Technology (BSIT)',
@@ -480,7 +480,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 disabled={loading}
                 className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg shadow-xs transition-colors cursor-pointer mt-2"
               >
-                {loading ? 'Creating Account & Syncing to Firebase...' : 'Register Account'}
+                {loading ? 'Creating Account & Saving Profile...' : 'Register Account'}
               </button>
             </form>
           )}

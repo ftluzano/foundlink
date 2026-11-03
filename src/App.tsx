@@ -7,7 +7,9 @@ import {
   AuditLogRecord,
   ItemType,
   UserProfile,
-  OnlineUserRecord
+  OnlineUserRecord,
+  ReputationRecord,
+  RecoveryReportRecord
 } from './types';
 import { realtimeStore } from './services/realtimeStore';
 import { authService } from './services/authService';
@@ -23,6 +25,8 @@ import { StudentPortalView } from './components/StudentPortalView';
 import { NotificationCenter } from './components/NotificationCenter';
 import { ProfileSettingsModal } from './components/ProfileSettingsModal';
 import { AuthScreen } from './components/AuthScreen';
+import { CommunityDashboard } from './components/CommunityDashboard';
+import { RecoveryVerificationModal } from './components/RecoveryVerificationModal';
 import { CheckCircle2 } from 'lucide-react';
 
 const CUSTODIAN_EMAIL = 'ftluzano@paterostechnologicalcollege.edu.ph';
@@ -37,6 +41,7 @@ export default function App() {
   const [notifications, setNotifications] = useState<NotificationRecord[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogRecord[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<OnlineUserRecord[]>([]);
+  const [reputation, setReputation] = useState<ReputationRecord[]>([]);
   const [firebaseUid, setFirebaseUid] = useState(() => authService.getCurrentUser()?.uid || '');
   const toastedRecoveryIds = useRef(new Set<string>());
 
@@ -45,7 +50,7 @@ export default function App() {
     return localStorage.getItem('foundlink_authenticated') === 'true';
   });
 
-  // User Profile Credentials (Auto-persisted with Firebase Firestore)
+  // User profile data is persisted through the Turso API.
   const [userProfile, setUserProfile] = useState<UserProfile>(() => {
     try {
       const saved = localStorage.getItem('foundlink_user_profile');
@@ -66,7 +71,7 @@ export default function App() {
   });
 
   // Navigation & Role State
-  const [currentTab, setCurrentTab] = useState<'directory' | 'claims' | 'admin' | 'my-reports'>('directory');
+  const [currentTab, setCurrentTab] = useState<'directory' | 'claims' | 'admin' | 'my-reports' | 'community'>('directory');
   const [userRole, setUserRole] = useState<'student' | 'admin'>(() => resolveUserRole());
   const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('foundlink_theme') === 'dark');
 
@@ -107,6 +112,10 @@ export default function App() {
   const [selectedItemForClaim, setSelectedItemForClaim] = useState<{ found: ItemRecord; lost?: ItemRecord } | null>(null);
   const [activeClaimSlip, setActiveClaimSlip] = useState<ClaimRecord | null>(null);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [recoveryVerification, setRecoveryVerification] = useState<{
+    item: ItemRecord;
+    reports: RecoveryReportRecord[];
+  } | null>(null);
 
   // Modern Toast feedback
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -118,7 +127,7 @@ export default function App() {
     }, 3000);
   };
 
-  // 1. Subscribe to Firebase Auth and sync user profile from Firestore
+  // 1. Subscribe to Firebase Auth and sync the user profile from Turso
   useEffect(() => {
     const unsubAuth = authService.subscribeAuth(async (firebaseUser) => {
       if (firebaseUser) {
@@ -126,7 +135,7 @@ export default function App() {
         setIsAuthenticated(true);
         localStorage.setItem('foundlink_authenticated', 'true');
 
-        // Subscribe to Firestore /users/{uid} document
+        // Subscribe to this user's Turso profile.
         const unsubProfile = authService.subscribeUserProfile(
           firebaseUser.uid,
           (remoteProfile) => {
@@ -145,18 +154,20 @@ export default function App() {
     return () => unsubAuth();
   }, []);
 
-  // 2. Subscribe to real-time pub/sub bus (Firestore items, claims, matches)
+  // 2. Subscribe to the Turso-backed site records.
   useEffect(() => {
     const unsubItems = realtimeStore.subscribeItems(setItems);
     const unsubClaims = realtimeStore.subscribeClaims(setClaims);
     const unsubMatches = realtimeStore.subscribeMatches(setMatches);
     const unsubAudit = realtimeStore.subscribeAuditLogs(setAuditLogs);
+    const unsubReputation = realtimeStore.subscribeReputation(setReputation);
 
     return () => {
       unsubItems();
       unsubClaims();
       unsubMatches();
       unsubAudit();
+      unsubReputation();
     };
   }, []);
 
@@ -258,7 +269,6 @@ export default function App() {
 
   // Handlers
   const handleOpenReportModal = (type: ItemType) => {
-    if (type === 'found' && userRole !== 'admin') return;
     setReportModalType(type);
     setReportModalOpen(true);
   };
@@ -269,8 +279,15 @@ export default function App() {
   };
 
   const handleMarkItemRecovered = async (item: ItemRecord) => {
-    await realtimeStore.markItemRecovered(item.id);
-    showToast('Your post is now marked as recovered.');
+    const reports = await realtimeStore.getRecoveryReports(item.id);
+    setRecoveryVerification({ item, reports });
+  };
+
+  const handleConfirmRecovery = async (finderUid?: string) => {
+    if (!recoveryVerification) return;
+    await realtimeStore.markItemRecovered(recoveryVerification.item.id, finderUid);
+    setRecoveryVerification(null);
+    showToast(finderUid ? 'Recovery confirmed. Reputation awarded to the finder.' : 'Your post is now marked as recovered.');
   };
 
   const handleSetCustodian = async (onlineUser: OnlineUserRecord, isCustodian: boolean) => {
@@ -292,11 +309,11 @@ export default function App() {
       // fallback
     }
 
-    // Upload to Firebase Firestore
+    // Save profile data in Turso.
     const currentUid = normalizedProfile.uid || authService.getCurrentUser()?.uid || 'local_user';
     try {
       await authService.saveUserProfile(currentUid, normalizedProfile);
-      showToast('Profile & 500x500 photo synced to Firebase');
+      showToast('Profile & 500x500 photo synced to Turso');
     } catch {
       showToast('Profile saved locally');
     }
@@ -403,6 +420,10 @@ export default function App() {
           />
         )}
 
+        {currentTab === 'community' && (
+          <CommunityDashboard reputation={reputation} userUid={firebaseUid} />
+        )}
+
         {currentTab === 'admin' && userRole === 'admin' && (
           <AdminDashboard
             items={items}
@@ -421,7 +442,6 @@ export default function App() {
               realtimeStore.clearAllData();
               showToast('Database reset');
             }}
-            onOpenFirebaseModal={() => {}}
           />
         )}
       </main>
@@ -439,7 +459,7 @@ export default function App() {
         <ReportModal
           initialType={reportModalType}
           userProfile={userProfile}
-          canReportFound={userRole === 'admin'}
+          canReportFound
           onClose={() => setReportModalOpen(false)}
           onSubmit={handleItemCreated}
           onMatchDiscovered={handleMatchDiscovered}
@@ -463,6 +483,15 @@ export default function App() {
           onUpdateStatus={handleUpdateStatus}
           onUpdateCustody={handleUpdateCustody}
           onDeleteItem={handleDeleteItem}
+        />
+      )}
+
+      {recoveryVerification && (
+        <RecoveryVerificationModal
+          item={recoveryVerification.item}
+          reports={recoveryVerification.reports}
+          onClose={() => setRecoveryVerification(null)}
+          onConfirm={handleConfirmRecovery}
         />
       )}
 

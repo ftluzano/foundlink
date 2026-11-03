@@ -5,7 +5,6 @@ import {
   HandHelping,
   Lock,
   CheckCircle2,
-  Image as ImageIcon,
   Upload,
   Trash2
 } from 'lucide-react';
@@ -41,7 +40,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
   const [description, setDescription] = useState('');
   const [distinctiveMarks, setDistinctiveMarks] = useState('');
   const [secretDetails, setSecretDetails] = useState('');
-  const [custodyLocation, setCustodyLocation] = useState(CUSTODY_LOCATIONS[0]);
+  const [custodyLocation, setCustodyLocation] = useState(CUSTODY_LOCATIONS[CUSTODY_LOCATIONS.length - 1]);
   const [photoUrl, setPhotoUrl] = useState('');
   const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [imageError, setImageError] = useState('');
@@ -80,7 +79,8 @@ export const ReportModal: React.FC<ReportModalProps> = ({
       setValidationError('Please enter a valid email address.');
       return;
     }
-    if (!dateTime || Number.isNaN(new Date(dateTime).getTime())) {
+    const reportedDate = dateTime ? new Date(dateTime) : new Date();
+    if (Number.isNaN(reportedDate.getTime())) {
       setValidationError('Please enter a valid date and time.');
       return;
     }
@@ -110,7 +110,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
         brand: brand.trim() || 'Unspecified',
         color,
         location: fullLocation,
-        dateTime: new Date(dateTime).toISOString(),
+        dateTime: reportedDate.toISOString(),
         description: description.trim(),
         distinctiveMarks: distinctiveMarks.trim(),
         secretDetails: secretDetails.trim(),
@@ -236,16 +236,9 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                 )}
               </div>
 
-              {photoUrl ? (
+              {photoUrl && (
                 <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-                  <img src={photoUrl} alt="Uploaded item preview" className="w-full h-52 object-cover" />
-                </div>
-              ) : (
-                <div className="flex items-center justify-center border border-dashed border-slate-300 rounded-lg bg-white p-4">
-                  <div className="text-center text-slate-500">
-                    <ImageIcon className="w-7 h-7 mx-auto mb-2 text-slate-400" />
-                    <p className="text-[11px]">No photo attached yet</p>
-                  </div>
+                  <img src={photoUrl} alt="Uploaded item preview" className="w-full h-40 object-cover" />
                 </div>
               )}
 
@@ -263,7 +256,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                   className="px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-300 rounded-md font-medium text-slate-700 flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
                 >
                   <Upload className="w-3.5 h-3.5 text-slate-500" />
-                  <span>{isProcessingImage ? 'Processing...' : 'Upload Photo'}</span>
+                  <span>{isProcessingImage ? 'Processing...' : photoUrl ? 'Change photo' : 'Add photo (optional)'}</span>
                 </label>
               </div>
 
@@ -284,7 +277,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div>
               <div>
                 <label className="block font-medium text-slate-700 mb-1">Category *</label>
                 <select
@@ -299,32 +292,6 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                   ))}
                 </select>
               </div>
-
-              <div>
-                <label className="block font-medium text-slate-700 mb-1">Brand</label>
-                <input
-                  type="text"
-                  value={brand}
-                  onChange={(e) => setBrand(e.target.value)}
-                  placeholder="e.g. Apple, Lenovo"
-                  className="w-full px-2.5 py-1.5 border border-slate-200 rounded-md"
-                />
-              </div>
-
-              <div>
-                <label className="block font-medium text-slate-700 mb-1">Color *</label>
-                <select
-                  value={color}
-                  onChange={(e) => setColor(e.target.value)}
-                  className="w-full px-2.5 py-1.5 border border-slate-200 rounded-md"
-                >
-                  {ITEM_COLORS.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </div>
             </div>
 
             <div>
@@ -333,13 +300,39 @@ export const ReportModal: React.FC<ReportModalProps> = ({
               </label>
               <textarea
                 required
-                rows={2}
+                rows={3}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Visual condition, stickers, contents..."
                 className="w-full px-3 py-1.5 border border-slate-200 rounded-md"
               />
             </div>
+
+            <details className="rounded-lg border border-slate-200 px-3 py-2">
+              <summary className="cursor-pointer font-semibold text-slate-700">More item details (optional)</summary>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-3">
+                <div>
+                  <label className="block font-medium text-slate-700 mb-1">Brand</label>
+                  <input
+                    type="text"
+                    value={brand}
+                    onChange={(e) => setBrand(e.target.value)}
+                    placeholder="e.g. Apple, Lenovo"
+                    className="w-full px-2.5 py-1.5 border border-slate-200 rounded-md"
+                  />
+                </div>
+                <div>
+                  <label className="block font-medium text-slate-700 mb-1">Color</label>
+                  <select
+                    value={color}
+                    onChange={(e) => setColor(e.target.value)}
+                    className="w-full px-2.5 py-1.5 border border-slate-200 rounded-md"
+                  >
+                    {ITEM_COLORS.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+              </div>
+            </details>
           </div>
 
           {/* Location & Time */}
@@ -347,36 +340,26 @@ export const ReportModal: React.FC<ReportModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
                 <label className="block font-medium text-slate-700 mb-1">Campus Area *</label>
-                {type === 'lost' ? (
-                  <input
-                    type="text"
-                    required
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    placeholder="Type where you lost it (building, floor, room...)"
-                    className="w-full px-2.5 py-1.5 border border-slate-200 rounded-md"
-                  />
-                ) : (
-                  <select
-                    required
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    className="w-full px-2.5 py-1.5 border border-slate-200 rounded-md"
-                  >
-                    {CAMPUS_LOCATIONS.filter((l) => l !== 'All Campus Locations').map((l) => (
-                      <option key={l} value={l}>
-                        {l}
-                      </option>
-                    ))}
-                  </select>
-                )}
+                <input
+                  type="text"
+                  required
+                  list="report-campus-locations"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder="Start typing a campus area"
+                  className="w-full px-2.5 py-1.5 border border-slate-200 rounded-md"
+                />
+                <datalist id="report-campus-locations">
+                  {CAMPUS_LOCATIONS.filter((area) => area !== 'All Campus Locations').map((area) => (
+                    <option key={area} value={area} />
+                  ))}
+                </datalist>
               </div>
 
               <div>
-                <label className="block font-medium text-slate-700 mb-1">Date & Time *</label>
+                <label className="block font-medium text-slate-700 mb-1">Date & Time</label>
                 <input
                   type="datetime-local"
-                  required
                   value={dateTime}
                   onChange={(e) => setDateTime(e.target.value)}
                   className="w-full px-2.5 py-1.5 border border-slate-200 rounded-md"
@@ -414,8 +397,9 @@ export const ReportModal: React.FC<ReportModalProps> = ({
             )}
           </div>
 
-          {/* Verification Fields */}
-          <div className="space-y-3 pt-2 border-t border-slate-100">
+          <details className="rounded-lg border border-slate-200 px-3 py-2">
+            <summary className="cursor-pointer font-semibold text-slate-700">Extra identifying details (optional)</summary>
+            <div className="space-y-3 pt-3">
             <div>
               <label className="block font-medium text-slate-700 mb-1">
                 Public Identifying Marks (Displayed on Listing)
@@ -445,10 +429,12 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                 Protected by RA 10173. Only verified by Custodian during in-person release.
               </span>
             </div>
-          </div>
+            </div>
+          </details>
 
-          {/* Reporter Details */}
-          <div className="space-y-2 pt-2 border-t border-slate-100">
+          <details className="rounded-lg border border-slate-200 px-3 py-2">
+            <summary className="cursor-pointer font-semibold text-slate-700">Contact and privacy options</summary>
+            <div className="space-y-2 pt-3">
             <div className="flex items-center justify-between">
               <span className="font-semibold text-slate-700">Reporter Contact</span>
               <label className="flex items-center gap-1.5 text-slate-600 cursor-pointer text-[11px]">
@@ -495,7 +481,8 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                 />
               </div>
             )}
-          </div>
+            </div>
+          </details>
 
           {/* Actions */}
           {validationError && (

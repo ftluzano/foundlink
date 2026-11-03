@@ -48,7 +48,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
     setIsProcessingImage(true);
 
     try {
-      // Resize and center-crop to exactly 500x500 Base64 string for Firebase
+      // Resize and center-crop to exactly 500x500 Base64 string for the profile record.
       const base64 = await resizeImageToBase64(file, 500, 500);
       setPhotoBase64(base64);
     } catch (err: any) {
@@ -183,7 +183,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
           {savedSuccess && (
             <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 font-medium flex items-center gap-2 animate-in fade-in">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>Profile information successfully synced to Firebase!</span>
+              <span>Profile information successfully synced to Turso!</span>
             </div>
           )}
 
@@ -365,7 +365,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
               type="submit"
               className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg shadow-xs transition-colors cursor-pointer"
             >
-              Save Profile to Firebase
+              Save Profile to Turso
             </button>
           </div>
         </form>

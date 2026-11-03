@@ -1,16 +1,6 @@
-import {
-  collection,
-  doc,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  onSnapshot,
-  query,
-  orderBy,
-  where,
-  writeBatch
-} from 'firebase/firestore';
-import { auth, db, firebaseConfig } from './firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from './firebase';
+import { tursoApi } from './tursoApi';
 import {
   ItemRecord,
   ItemComment,
@@ -20,8 +10,9 @@ import {
   PotentialMatchRecord,
   NotificationRecord,
   AuditLogRecord,
-  FirebaseConfigBridge,
-  OnlineUserRecord
+  OnlineUserRecord,
+  ReputationRecord,
+  RecoveryReportRecord
 } from '../types';
 import { findPotentialMatchesForItem } from './matchingService';
 
@@ -33,20 +24,22 @@ class RealtimeStore {
   private potentialMatches: PotentialMatchRecord[] = [];
   private notifications: NotificationRecord[] = [];
   private auditLogs: AuditLogRecord[] = [];
+  private reputation: ReputationRecord[] = [];
 
   private itemsListeners: Set<Listener<ItemRecord[]>> = new Set();
   private claimsListeners: Set<Listener<ClaimRecord[]>> = new Set();
   private matchesListeners: Set<Listener<PotentialMatchRecord[]>> = new Set();
   private notifListeners: Set<Listener<NotificationRecord[]>> = new Set();
   private auditListeners: Set<Listener<AuditLogRecord[]>> = new Set();
+  private reputationListeners: Set<Listener<ReputationRecord[]>> = new Set();
 
   private broadcastChannel: BroadcastChannel | null = null;
-  public isFirestoreConnected = false;
-  public firestoreStatusMessage = 'Connecting to Firebase Firestore...';
+  public isDataConnected = false;
+  public dataStatusMessage = 'Connecting to Turso...';
 
   constructor() {
     this.initStorageAndSync();
-    this.initFirestoreListeners();
+    this.initTursoListeners();
   }
 
   private initStorageAndSync() {
@@ -65,83 +58,69 @@ class RealtimeStore {
     this.loadFromLocalStorage(false);
   }
 
-  private initFirestoreListeners() {
-    try {
-      // 1. Items Listener
-      const itemsCol = collection(db, 'items');
-      onSnapshot(
-        itemsCol,
-        (snapshot) => {
-          this.isFirestoreConnected = true;
-          this.firestoreStatusMessage = 'Connected to Firebase Firestore';
-          const remoteItems: ItemRecord[] = [];
-          snapshot.forEach((d) => remoteItems.push(d.data() as ItemRecord));
-          remoteItems.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-          this.items = remoteItems;
-          this.saveToLocalStorageAndBroadcast(false);
-          this.notifyItems();
-        },
-        (error) => {
-          console.warn('Firestore items sync notice:', error.message);
-          this.firestoreStatusMessage = error.code === 'permission-denied'
-            ? 'Firebase Connected (Firestore Security Rules need publish)'
-            : `Firebase: ${error.message}`;
+  private initTursoListeners() {
+    let refreshInProgress = false;
+    const refresh = async () => {
+      if (refreshInProgress) return;
+      refreshInProgress = true;
+      try {
+        const collections = auth.currentUser
+          ? ['items', 'claims', 'potential_matches', 'notifications', 'audit_logs', 'reputation'] as const
+          : ['items'] as const;
+        const remote = await tursoApi.snapshot<{
+          items: ItemRecord[];
+          claims: ClaimRecord[];
+          potential_matches: PotentialMatchRecord[];
+          notifications: NotificationRecord[];
+          audit_logs: AuditLogRecord[];
+          reputation: ReputationRecord[];
+        }>([...collections]);
+        this.items = (remote.items || [])
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        this.notifyItems();
+
+        if (auth.currentUser) {
+          this.claims = (remote.claims || []).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+          this.potentialMatches = (remote.potential_matches || []).sort((a, b) => b.score - a.score);
+          this.notifications = (remote.notifications || []).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+          this.auditLogs = (remote.audit_logs || []).sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+          this.reputation = remote.reputation || [];
+        } else {
+          this.claims = [];
+          this.potentialMatches = [];
+          this.notifications = [];
+          this.auditLogs = [];
+          this.reputation = [];
         }
-      );
 
-      // 2. Claims Listener
-      const claimsCol = collection(db, 'claims');
-      onSnapshot(
-        claimsCol,
-        (snapshot) => {
-          if (!snapshot.empty) {
-            const remoteClaims: ClaimRecord[] = [];
-            snapshot.forEach((d) => remoteClaims.push(d.data() as ClaimRecord));
-            remoteClaims.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-            this.claims = remoteClaims;
-            this.saveToLocalStorageAndBroadcast(false);
-            this.notifyClaims();
-          }
-        },
-        (err) => console.warn('Firestore claims notice:', err.message)
-      );
+        this.isDataConnected = true;
+        this.dataStatusMessage = 'Connected to Turso';
+        this.saveToLocalStorageAndBroadcast(false);
+        this.notifyClaims();
+        this.notifyMatches();
+        this.notifyNotifs();
+        this.notifyAudit();
+        this.notifyReputation();
+      } catch (error) {
+        this.isDataConnected = false;
+        this.dataStatusMessage = error instanceof Error ? error.message : 'Turso connection failed.';
+        console.warn('Turso sync notice:', this.dataStatusMessage);
+      } finally {
+        refreshInProgress = false;
+      }
+    };
 
-      // 3. Potential Matches Listener
-      const matchesCol = collection(db, 'potential_matches');
-      onSnapshot(
-        matchesCol,
-        (snapshot) => {
-          if (!snapshot.empty) {
-            const remoteMatches: PotentialMatchRecord[] = [];
-            snapshot.forEach((d) => remoteMatches.push(d.data() as PotentialMatchRecord));
-            remoteMatches.sort((a, b) => b.score - a.score);
-            this.potentialMatches = remoteMatches;
-            this.saveToLocalStorageAndBroadcast(false);
-            this.notifyMatches();
-          }
-        },
-        (err) => console.warn('Firestore matches notice:', err.message)
-      );
-
-      // 4. Audit Logs Listener
-      const auditCol = collection(db, 'audit_logs');
-      onSnapshot(
-        auditCol,
-        (snapshot) => {
-          if (!snapshot.empty) {
-            const remoteLogs: AuditLogRecord[] = [];
-            snapshot.forEach((d) => remoteLogs.push(d.data() as AuditLogRecord));
-            remoteLogs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-            this.auditLogs = remoteLogs;
-            this.saveToLocalStorageAndBroadcast(false);
-            this.notifyAudit();
-          }
-        },
-        (err) => console.warn('Firestore audit notice:', err.message)
-      );
-    } catch (e) {
-      console.warn('Firestore initialization fallback active', e);
+    onAuthStateChanged(auth, () => void refresh());
+    if (typeof window !== 'undefined') {
+      window.setInterval(() => {
+        if (!document.hidden) void refresh();
+      }, 2_500);
+      window.addEventListener('focus', () => void refresh());
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) void refresh();
+      });
     }
+    void refresh();
   }
 
   private loadFromLocalStorage(notify = true) {
@@ -239,6 +218,9 @@ class RealtimeStore {
   private notifyAudit() {
     this.auditListeners.forEach((fn) => fn([...this.auditLogs]));
   }
+  private notifyReputation() {
+    this.reputationListeners.forEach((fn) => fn([...this.reputation]));
+  }
 
   private notifyAll() {
     this.notifyItems();
@@ -246,6 +228,7 @@ class RealtimeStore {
     this.notifyMatches();
     this.notifyNotifs();
     this.notifyAudit();
+    this.notifyReputation();
   }
 
   // ---------------- SUBSCRIPTIONS ----------------
@@ -261,15 +244,25 @@ class RealtimeStore {
       listener(true);
       return () => {};
     }
-
-    return onSnapshot(
-      doc(db, 'custodians', userId),
-      (snapshot) => listener(snapshot.exists()),
-      (error) => {
-        console.warn('Custodian role sync notice:', error.message);
-        listener(false);
-      }
-    );
+    let active = true;
+    let refreshInProgress = false;
+    const refresh = () => {
+      if (refreshInProgress) return;
+      refreshInProgress = true;
+      void tursoApi.list<{ uid: string }>('custodians')
+        .then((custodians) => active && listener(custodians.some((custodian) => custodian.uid === userId)))
+        .catch((error) => console.warn('Turso custodian sync notice:', error))
+        .finally(() => { refreshInProgress = false; });
+    };
+    refresh();
+    const handleFocus = () => refresh();
+    const interval = window.setInterval(refresh, 2_500);
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }
 
   subscribeOnlineUsers(listener: Listener<OnlineUserRecord[]>): () => void {
@@ -289,28 +282,35 @@ class RealtimeStore {
         .sort((a, b) => a.name.localeCompare(b.name)));
     };
 
-    const unsubscribePresence = onSnapshot(
-      query(collection(db, 'presence'), where('isOnline', '==', true)),
-      (snapshot) => {
-        presenceRecords = snapshot.docs.map((presenceDoc) => presenceDoc.data() as PresenceRecord);
+    let active = true;
+    let refreshInProgress = false;
+    const refresh = async () => {
+      if (refreshInProgress) return;
+      refreshInProgress = true;
+      try {
+        const [presence, custodians] = await Promise.all([
+          tursoApi.list<PresenceRecord>('presence'),
+          tursoApi.list<{ uid: string }>('custodians')
+        ]);
+        if (!active) return;
+        presenceRecords = presence;
+        custodianIds = new Set(custodians.map((custodian) => custodian.uid));
         notify();
-      },
-      (error) => console.warn('Online user presence notice:', error.message)
-    );
-    const unsubscribeCustodians = onSnapshot(
-      collection(db, 'custodians'),
-      (snapshot) => {
-        custodianIds = new Set(snapshot.docs.map((custodianDoc) => custodianDoc.id));
-        notify();
-      },
-      (error) => console.warn('Custodian roster notice:', error.message)
-    );
-    const refreshTimer = window.setInterval(notify, 30_000);
+      } catch (error) {
+        console.warn('Turso online user sync notice:', error);
+      } finally {
+        refreshInProgress = false;
+      }
+    };
+    void refresh();
+    const handleFocus = () => void refresh();
+    const refreshTimer = window.setInterval(() => void refresh(), 2_500);
+    window.addEventListener('focus', handleFocus);
 
     return () => {
+      active = false;
       window.clearInterval(refreshTimer);
-      unsubscribePresence();
-      unsubscribeCustodians();
+      window.removeEventListener('focus', handleFocus);
     };
   }
 
@@ -318,13 +318,13 @@ class RealtimeStore {
     const user = auth.currentUser;
     if (!user) return;
 
-    await setDoc(doc(db, 'presence', user.uid), {
+    await tursoApi.save('presence', user.uid, {
       uid: user.uid,
       name: name.trim() || user.displayName || user.email || 'Campus member',
       email: user.email || '',
       isOnline,
       lastSeen: new Date().toISOString()
-    }, { merge: true });
+    });
   }
 
   async setCustodian(userId: string, name: string, email: string, isCustodian: boolean): Promise<void> {
@@ -335,9 +335,8 @@ class RealtimeStore {
     }
     if (userId === user.uid) throw new Error('Your primary Custodian access cannot be removed here.');
 
-    const custodianRef = doc(db, 'custodians', userId);
     if (isCustodian) {
-      await setDoc(custodianRef, {
+      await tursoApi.create('custodians', userId, {
         uid: userId,
         name,
         email,
@@ -345,7 +344,7 @@ class RealtimeStore {
         assignedAt: new Date().toISOString()
       });
     } else {
-      await deleteDoc(custodianRef);
+      await tursoApi.delete('custodians', userId);
     }
   }
 
@@ -353,32 +352,35 @@ class RealtimeStore {
     itemId: string,
     listener: (comments: ItemComment[], reactions: ItemReaction[]) => void
   ): () => void {
-    let comments: ItemComment[] = [];
-    let reactions: ItemReaction[] = [];
-    const notify = () => listener([...comments], [...reactions]);
-
-    const unsubscribeComments = onSnapshot(
-      collection(db, 'items', itemId, 'comments'),
-      (snapshot) => {
-        comments = snapshot.docs
-          .map((commentDoc) => commentDoc.data() as ItemComment)
-          .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-        notify();
-      },
-      (error) => console.warn('Item comments sync notice:', error.message)
-    );
-    const unsubscribeReactions = onSnapshot(
-      collection(db, 'items', itemId, 'reactions'),
-      (snapshot) => {
-        reactions = snapshot.docs.map((reactionDoc) => reactionDoc.data() as ItemReaction);
-        notify();
-      },
-      (error) => console.warn('Item reactions sync notice:', error.message)
-    );
-
+    let active = true;
+    let refreshInProgress = false;
+    const refresh = async () => {
+      if (refreshInProgress) return;
+      refreshInProgress = true;
+      try {
+        const [allComments, allReactions] = await Promise.all([
+          tursoApi.list<ItemComment & { itemId: string }>('item_comments'),
+          tursoApi.list<ItemReaction & { itemId: string }>('item_reactions')
+        ]);
+        if (!active) return;
+        listener(
+          allComments.filter((comment) => comment.itemId === itemId).sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+          allReactions.filter((reaction) => reaction.itemId === itemId)
+        );
+      } catch (error) {
+        console.warn('Turso item social sync notice:', error);
+      } finally {
+        refreshInProgress = false;
+      }
+    };
+    void refresh();
+    const handleFocus = () => void refresh();
+    const interval = window.setInterval(() => void refresh(), 2_500);
+    window.addEventListener('focus', handleFocus);
     return () => {
-      unsubscribeComments();
-      unsubscribeReactions();
+      active = false;
+      window.clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
     };
   }
 
@@ -393,16 +395,16 @@ class RealtimeStore {
       text: text.trim(),
       createdAt: new Date().toISOString()
     };
-    await setDoc(doc(db, 'items', itemId, 'comments', comment.id), comment);
+    await tursoApi.create('item_comments', `${itemId}:${comment.id}`, { ...comment, itemId });
   }
 
   async setItemReaction(itemId: string, type: ItemReactionType | null, userName: string): Promise<void> {
     const user = auth.currentUser;
     if (!user) throw new Error('Sign in with your account to react.');
 
-    const reactionRef = doc(db, 'items', itemId, 'reactions', user.uid);
+    const reactionId = `${itemId}:${user.uid}`;
     if (!type) {
-      await deleteDoc(reactionRef);
+      await tursoApi.delete('item_reactions', reactionId);
       return;
     }
 
@@ -412,7 +414,7 @@ class RealtimeStore {
       type,
       updatedAt: new Date().toISOString()
     };
-    await setDoc(reactionRef, reaction);
+    await tursoApi.save('item_reactions', reactionId, { ...reaction, itemId });
   }
 
   subscribeClaims(listener: Listener<ClaimRecord[]>): () => void {
@@ -428,24 +430,12 @@ class RealtimeStore {
   }
 
   subscribeNotifications(userId: string, listener: Listener<NotificationRecord[]>): () => void {
-    this.notifListeners.add(listener);
-    this.notifications = [];
-    listener([]);
-    const notificationsQuery = query(collection(db, 'notifications'), where('userId', '==', userId));
-    const unsubscribe = onSnapshot(
-      notificationsQuery,
-      (snapshot) => {
-        this.notifications = snapshot.docs
-          .map((notificationDoc) => notificationDoc.data() as NotificationRecord)
-          .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-        this.saveToLocalStorageAndBroadcast(false);
-        this.notifyNotifs();
-      },
-      (error) => console.warn('User notifications sync notice:', error.message)
-    );
+    const userListener: Listener<NotificationRecord[]> = (notifications) =>
+      listener(notifications.filter((notification) => notification.userId === userId));
+    this.notifListeners.add(userListener);
+    userListener([...this.notifications]);
     return () => {
-      unsubscribe();
-      this.notifListeners.delete(listener);
+      this.notifListeners.delete(userListener);
     };
   }
 
@@ -477,8 +467,7 @@ class RealtimeStore {
       isRead: false,
       createdAt
     };
-    const batch = writeBatch(db);
-    batch.set(doc(db, 'items', item.id, 'recovery_reports', user.uid), {
+    await tursoApi.create('recovery_reports', `${item.id}:${user.uid}`, {
       itemId: item.id,
       itemTitle: item.title,
       ownerUid: item.reportedBy.uid,
@@ -487,11 +476,17 @@ class RealtimeStore {
       handoffDetails: details,
       createdAt
     });
-    batch.set(doc(db, 'notifications', notificationId), notification);
-    await batch.commit();
+    await tursoApi.create('notifications', notificationId, notification);
   }
 
-  async markItemRecovered(itemId: string): Promise<void> {
+  async getRecoveryReports(itemId: string): Promise<RecoveryReportRecord[]> {
+    const reports = await tursoApi.list<RecoveryReportRecord>('recovery_reports');
+    return reports
+      .filter((report) => report.itemId === itemId)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  }
+
+  async markItemRecovered(itemId: string, finderUid?: string): Promise<void> {
     const user = auth.currentUser;
     if (!user) throw new Error('Sign in with your account before marking this item recovered.');
 
@@ -502,7 +497,10 @@ class RealtimeStore {
     if (item.status === 'Recovered') return;
 
     const updatedAt = new Date().toISOString();
-    await updateDoc(doc(db, 'items', itemId), { status: 'Recovered', updatedAt });
+    await tursoApi.verifyRecovery(itemId, finderUid);
+    const updatedItem = this.items.find((record) => record.id === itemId)!;
+    updatedItem.status = 'Recovered';
+    updatedItem.updatedAt = updatedAt;
     this.items = this.items.map((record) => record.id === itemId
       ? { ...record, status: 'Recovered', updatedAt }
       : record);
@@ -516,7 +514,13 @@ class RealtimeStore {
     return () => this.auditListeners.delete(listener);
   }
 
-  // ---------------- ACTIONS (Instant update + Firestore setDoc) ----------------
+  subscribeReputation(listener: Listener<ReputationRecord[]>): () => void {
+    this.reputationListeners.add(listener);
+    listener([...this.reputation]);
+    return () => this.reputationListeners.delete(listener);
+  }
+
+  // ---------------- ACTIONS (Instant update + Turso persistence) ----------------
   async createItem(itemData: Omit<ItemRecord, 'id' | 'createdAt' | 'updatedAt'>): Promise<ItemRecord> {
     const firebaseUser = auth.currentUser;
     if (!firebaseUser) {
@@ -533,10 +537,10 @@ class RealtimeStore {
     };
 
     try {
-      await setDoc(doc(db, 'items', newItem.id), newItem);
+      await tursoApi.create('items', newItem.id, newItem);
     } catch (err) {
-      console.warn('Firestore publish item error:', err);
-      throw new Error('Could not publish this report to the shared directory. Please sign in again and retry.');
+      console.warn('Turso publish item error:', err);
+      throw new Error('Could not publish this report to the shared directory. Check your connection and retry.');
     }
 
     // Instant local optimistic update
@@ -562,15 +566,16 @@ class RealtimeStore {
 
       const bestMatch = newMatches[0];
       this.createNotification({
+        userId: newItem.reportedBy.uid,
         title: `Match Detected (${bestMatch.score}%)`,
         message: `Correlation between "${bestMatch.lostItemTitle}" and "${bestMatch.foundItemTitle}".`,
         type: 'match',
         relatedItemId: newItem.id
       });
 
-      // Save match to Firestore
+      // Save the match to Turso.
       try {
-        await setDoc(doc(db, 'potential_matches', bestMatch.id), bestMatch);
+        await tursoApi.save('potential_matches', bestMatch.id, bestMatch);
       } catch (err) {
         // Fallback local
       }
@@ -579,11 +584,11 @@ class RealtimeStore {
     this.saveToLocalStorageAndBroadcast(true);
     this.notifyAll();
 
-    // Async write to Firebase Firestore
+    // Keep the final status, including a detected match, in Turso.
     try {
-      await setDoc(doc(db, 'items', newItem.id), newItem);
+      await tursoApi.save('items', newItem.id, newItem);
     } catch (err) {
-      console.warn('Firestore write item error (local fallback maintained):', err);
+      console.warn('Turso write item error (local fallback maintained):', err);
     }
 
     return newItem;
@@ -617,6 +622,7 @@ class RealtimeStore {
       });
 
       this.createNotification({
+        userId: updatedItem.reportedBy.uid,
         title: `Status: ${updates.status}`,
         message: `Case ${id} (${updatedItem.title}) changed to ${updates.status}.`,
         type: 'status',
@@ -628,14 +634,11 @@ class RealtimeStore {
     this.saveToLocalStorageAndBroadcast(true);
     this.notifyAll();
 
-    // Async update Firestore
+    // Persist the updated record.
     try {
-      await updateDoc(doc(db, 'items', id), {
-        ...updates,
-        updatedAt: updatedItem.updatedAt
-      });
+      await tursoApi.save('items', id, updatedItem);
     } catch (err) {
-      console.warn('Firestore updateDoc notice:', err);
+      console.warn('Turso update notice:', err);
     }
 
     return true;
@@ -662,9 +665,9 @@ class RealtimeStore {
     this.notifyAll();
 
     try {
-      await deleteDoc(doc(db, 'items', id));
+      await tursoApi.delete('items', id);
     } catch (err) {
-      console.warn('Firestore deleteDoc notice:', err);
+      console.warn('Turso delete notice:', err);
     }
 
     return true;
@@ -687,10 +690,7 @@ class RealtimeStore {
       foundItem.status = 'Under Verification';
       foundItem.updatedAt = new Date().toISOString();
       try {
-        await updateDoc(doc(db, 'items', foundItem.id), {
-          status: 'Under Verification',
-          updatedAt: foundItem.updatedAt
-        });
+        await tursoApi.save('items', foundItem.id, foundItem);
       } catch (e) {
         // local fallback
       }
@@ -706,6 +706,7 @@ class RealtimeStore {
     });
 
     this.createNotification({
+      userId: newClaim.claimantId,
       title: 'New Ownership Claim',
       message: `${newClaim.claimantName} filed a verification claim for "${newClaim.foundItemTitle}".`,
       type: 'claim',
@@ -717,9 +718,9 @@ class RealtimeStore {
     this.notifyAll();
 
     try {
-      await setDoc(doc(db, 'claims', newClaim.id), newClaim);
+      await tursoApi.create('claims', newClaim.id, newClaim);
     } catch (err) {
-      console.warn('Firestore create claim notice:', err);
+      console.warn('Turso create claim notice:', err);
     }
 
     return newClaim;
@@ -741,6 +742,7 @@ class RealtimeStore {
       foundItem.status = 'Approved';
       foundItem.updatedAt = new Date().toISOString();
       this.createNotification({
+        userId: claim.claimantId,
         title: 'Claim Approved for Release',
         message: `Claim for "${claim.foundItemTitle}" approved. Ready for custody pickup.`,
         type: 'verification',
@@ -748,10 +750,7 @@ class RealtimeStore {
         relatedItemId: foundItem.id
       });
       try {
-        await updateDoc(doc(db, 'items', foundItem.id), {
-          status: 'Approved',
-          updatedAt: foundItem.updatedAt
-        });
+        await tursoApi.save('items', foundItem.id, foundItem);
       } catch (e) {
         // fallback
       }
@@ -759,6 +758,7 @@ class RealtimeStore {
       foundItem.status = 'Returned';
       foundItem.updatedAt = new Date().toISOString();
       this.createNotification({
+        userId: claim.claimantId,
         title: 'Item Returned',
         message: `Item "${foundItem.title}" released to ${claim.claimantName}.`,
         type: 'handover',
@@ -766,10 +766,7 @@ class RealtimeStore {
         relatedItemId: foundItem.id
       });
       try {
-        await updateDoc(doc(db, 'items', foundItem.id), {
-          status: 'Returned',
-          updatedAt: foundItem.updatedAt
-        });
+        await tursoApi.save('items', foundItem.id, foundItem);
       } catch (e) {
         // fallback
       }
@@ -777,10 +774,7 @@ class RealtimeStore {
       foundItem.status = 'Found';
       foundItem.updatedAt = new Date().toISOString();
       try {
-        await updateDoc(doc(db, 'items', foundItem.id), {
-          status: 'Found',
-          updatedAt: foundItem.updatedAt
-        });
+        await tursoApi.save('items', foundItem.id, foundItem);
       } catch (e) {
         // fallback
       }
@@ -799,9 +793,9 @@ class RealtimeStore {
     this.notifyAll();
 
     try {
-      await updateDoc(doc(db, 'claims', claimId), updates);
+      await tursoApi.save('claims', claimId, claim);
     } catch (err) {
-      console.warn('Firestore update claim notice:', err);
+      console.warn('Turso update claim notice:', err);
     }
 
     return true;
@@ -822,32 +816,31 @@ class RealtimeStore {
     this.notifyNotifs();
 
     try {
-      await setDoc(doc(db, 'notifications', newNotif.id), newNotif);
+      await tursoApi.create('notifications', newNotif.id, newNotif);
     } catch (e) {
-      // local
+      console.warn('Turso notification write notice:', e);
     }
   }
 
-  markNotificationRead(id: string): void {
+  async markNotificationRead(id: string): Promise<void> {
     const n = this.notifications.find((item) => item.id === id);
     if (n) {
       n.isRead = true;
       this.saveToLocalStorageAndBroadcast(true);
       this.notifyNotifs();
-      try {
-        updateDoc(doc(db, 'notifications', id), { isRead: true });
-      } catch (e) {
-        // local
-      }
+      await tursoApi.save('notifications', id, n);
     }
   }
 
-  markAllNotificationsRead(): void {
+  async markAllNotificationsRead(): Promise<void> {
     this.notifications.forEach((n) => {
       n.isRead = true;
     });
     this.saveToLocalStorageAndBroadcast(true);
     this.notifyNotifs();
+    await Promise.all(this.notifications.map((notification) =>
+      tursoApi.save('notifications', notification.id, notification)
+    ));
   }
 
   private async logAudit(entry: Omit<AuditLogRecord, 'id' | 'timestamp'>): Promise<void> {
@@ -863,9 +856,9 @@ class RealtimeStore {
     this.notifyAudit();
 
     try {
-      await setDoc(doc(db, 'audit_logs', log.id), log);
+      await tursoApi.create('audit_logs', log.id, log);
     } catch (e) {
-      // local
+      console.warn('Turso audit log write notice:', e);
     }
   }
 
@@ -928,32 +921,6 @@ class RealtimeStore {
     this.notifyAll();
   }
 
-  getFirebaseConfig(): FirebaseConfigBridge {
-    return {
-      apiKey: firebaseConfig.apiKey,
-      authDomain: firebaseConfig.authDomain,
-      projectId: firebaseConfig.projectId,
-      storageBucket: firebaseConfig.storageBucket,
-      messagingSenderId: firebaseConfig.messagingSenderId,
-      appId: firebaseConfig.appId,
-      isConnected: true,
-      lastSyncAt: new Date().toISOString()
-    };
-  }
-
-  getFirestoreExportSchema() {
-    return {
-      schemaVersion: '1.0',
-      projectId: firebaseConfig.projectId,
-      collections: {
-        items: this.items,
-        claims: this.claims,
-        potential_matches: this.potentialMatches,
-        notifications: this.notifications,
-        audit_logs: this.auditLogs
-      }
-    };
-  }
 }
 
 export const realtimeStore = new RealtimeStore();
