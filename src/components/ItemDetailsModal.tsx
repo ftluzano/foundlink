@@ -203,7 +203,7 @@ export const ItemDetailsModal: React.FC<ItemDetailsModalProps> = ({
           </span>
 
           <div className="flex items-center gap-2">
-            {item.reportedBy.uid && item.reportedBy.uid !== currentUserUid && (
+            {item.reportedBy.uid && item.reportedBy.uid !== currentUserUid && !['Recovered', 'Returned', 'Closed'].includes(item.status) && (
               <button
                 type="button"
                 onClick={() => onMessageOwner(item)}

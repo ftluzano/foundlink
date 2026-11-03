@@ -461,7 +461,7 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
                         Claim
                       </button>
                     )}
-                    {item.reportedBy.uid !== currentUserUid && (
+                    {item.reportedBy.uid !== currentUserUid && !['Recovered', 'Returned', 'Closed'].includes(item.status) && (
                       <button type="button" onClick={() => onOpenChat(item)} className="ml-3 text-[#174a32] hover:text-[#103b28] font-semibold">
                         Chat
                       </button>
@@ -650,7 +650,7 @@ const ModernItemCard: React.FC<ModernItemCardProps> = ({ item, userProfile, onRe
 
       <div className="flex items-center justify-between gap-2 border-t border-slate-100 px-4 py-2.5">
         <ItemUpButton item={item} currentUserUid={currentUserUid} />
-        {item.reportedBy.uid !== currentUserUid ? (
+        {item.reportedBy.uid !== currentUserUid && !['Recovered', 'Returned', 'Closed'].includes(item.status) ? (
           <button type="button" onClick={onOpenChat} className="inline-flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-semibold text-[#174a32] transition-colors hover:bg-emerald-50" title="Message the post owner">
             <MessageCircle className="h-3.5 w-3.5" /> Chat
           </button>
