@@ -171,7 +171,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
 
   return (
     <div className="auth-screen min-h-screen bg-[#f3f6f3] text-slate-900 selection:bg-emerald-900 selection:text-white lg:grid lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-      <aside className="relative flex min-h-[270px] overflow-hidden bg-[#173b2b] text-white sm:min-h-[300px] lg:min-h-screen">
+      <aside className="relative flex min-h-[190px] overflow-hidden bg-[#173b2b] text-white sm:min-h-[240px] lg:min-h-screen">
         <img src={campusPhoto} alt="Pateros Technological College campus" className="absolute inset-0 h-full w-full object-cover object-center" />
         <div className="absolute inset-0 bg-[#102b20]/65" />
         <div className="relative z-10 flex w-full flex-1 flex-col justify-between px-5 py-5 sm:px-8 sm:py-7 lg:px-12 lg:py-10">
@@ -197,7 +197,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
         </div>
       </aside>
 
-      <main className="flex min-h-[calc(100vh-270px)] items-center justify-center px-4 py-8 sm:px-8 lg:min-h-screen lg:px-12 lg:py-12">
+      <main className="flex min-h-[calc(100vh-190px)] items-center justify-center px-3 py-5 sm:min-h-[calc(100vh-240px)] sm:px-8 sm:py-8 lg:min-h-screen lg:px-12 lg:py-12">
         <div className="w-full max-w-[31rem]">
           <header className="mb-5">
             <p className="text-[10px] font-bold uppercase text-emerald-800">Account access</p>
@@ -263,7 +263,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
         )}
 
         {/* Card Body */}
-        <div className="max-h-[75vh] space-y-4 overflow-y-auto p-4 sm:p-5 lg:max-h-[78vh]">
+        <div className="max-h-[calc(100dvh-300px)] space-y-4 overflow-y-auto p-3 sm:max-h-[75vh] sm:p-5 lg:max-h-[78vh]">
           {errorMsg && (
             <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 font-medium flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />

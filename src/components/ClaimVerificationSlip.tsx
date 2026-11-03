@@ -27,8 +27,8 @@ export const ClaimVerificationSlip: React.FC<ClaimVerificationSlipProps> = ({
   const isApproved = claim.status === 'Approved' || claim.status === 'Returned';
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-xl w-full my-8 overflow-hidden animate-in fade-in zoom-in-95 duration-150 print:m-0 print:border-none print:shadow-none">
+    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center overflow-y-auto p-2 sm:p-4">
+      <div className="my-2 max-h-[calc(100dvh-1rem)] w-full max-w-xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-150 print:m-0 print:border-none print:shadow-none sm:my-8">
         {/* Slip Header */}
         <div className="p-6 bg-slate-900 text-white flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -61,7 +61,7 @@ export const ClaimVerificationSlip: React.FC<ClaimVerificationSlipProps> = ({
         </div>
 
         {/* Voucher Body */}
-        <div className="p-6 space-y-6">
+        <div className="space-y-4 p-3 sm:space-y-6 sm:p-6">
           {/* Status Badge */}
           <div className="flex items-center justify-between p-3 rounded-xl border border-slate-200 bg-slate-50 text-xs">
             <div>

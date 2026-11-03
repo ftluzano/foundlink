@@ -32,8 +32,8 @@ export const RecoveryVerificationModal: React.FC<RecoveryVerificationModalProps>
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/60 p-4">
-      <section role="dialog" aria-modal="true" aria-labelledby="recovery-confirm-title" className="my-6 w-full max-w-lg overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/60 p-2 sm:p-4">
+      <section role="dialog" aria-modal="true" aria-labelledby="recovery-confirm-title" className="my-2 max-h-[calc(100dvh-1rem)] w-full max-w-lg overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-2xl sm:my-6">
         <header className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-700">Owner confirmation</p>

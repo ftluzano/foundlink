@@ -273,45 +273,45 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
         {/* Filters Strip */}
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3 text-xs">
           {/* Segmented Type Switcher */}
-          <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+          <div className="grid w-full grid-cols-3 items-center gap-1 rounded-lg border border-slate-200 bg-slate-100 p-0.5 text-center sm:flex sm:w-auto">
             <button
               onClick={() => setTypeFilter('all')}
-              className={`px-3 py-1 rounded-md font-medium transition-colors cursor-pointer ${
+                className={`min-w-0 rounded-md px-1.5 py-1 font-medium transition-colors cursor-pointer sm:px-3 ${
                 typeFilter === 'all'
                   ? 'bg-white text-slate-900 shadow-xs font-semibold'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              All Items ({items.length})
+              <span className="hidden sm:inline">All Items</span><span className="sm:hidden">All</span> <span>({items.length})</span>
             </button>
             <button
               onClick={() => setTypeFilter('lost')}
-              className={`px-3 py-1 rounded-md font-medium transition-colors cursor-pointer ${
+                className={`min-w-0 rounded-md px-1.5 py-1 font-medium transition-colors cursor-pointer sm:px-3 ${
                 typeFilter === 'lost'
                   ? 'bg-white text-rose-700 shadow-xs font-semibold'
                   : 'text-slate-600 hover:text-rose-700'
               }`}
             >
-              Lost Only ({items.filter((i) => i.type === 'lost').length})
+              <span className="hidden sm:inline">Lost Only</span><span className="sm:hidden">Lost</span> <span>({items.filter((i) => i.type === 'lost').length})</span>
             </button>
             <button
               onClick={() => setTypeFilter('found')}
-              className={`px-3 py-1 rounded-md font-medium transition-colors cursor-pointer ${
+                className={`min-w-0 rounded-md px-1.5 py-1 font-medium transition-colors cursor-pointer sm:px-3 ${
                 typeFilter === 'found'
                   ? 'bg-white text-emerald-800 shadow-xs font-semibold'
                   : 'text-slate-600 hover:text-emerald-800'
               }`}
             >
-              In Custody ({items.filter((i) => i.type === 'found').length})
+              <span className="hidden sm:inline">In Custody</span><span className="sm:hidden">Found</span> <span>({items.filter((i) => i.type === 'found').length})</span>
             </button>
           </div>
 
           {/* Dropdown Filters */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="grid w-full grid-cols-2 items-center gap-2 sm:flex sm:w-auto sm:flex-wrap">
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-slate-700 focus:outline-hidden"
+              className="w-full min-w-0 max-w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-slate-700 focus:outline-hidden sm:w-auto"
             >
               <option value="all">All Categories</option>
               {ITEM_CATEGORIES.map((c) => (
@@ -324,7 +324,7 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
             <select
               value={locationFilter}
               onChange={(e) => setLocationFilter(e.target.value)}
-              className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-slate-700 focus:outline-hidden max-w-[170px] truncate"
+              className="w-full min-w-0 max-w-full truncate rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-slate-700 focus:outline-hidden sm:w-auto sm:max-w-[170px]"
             >
               <option value="all">All Locations</option>
               {CAMPUS_LOCATIONS.filter((l) => l !== 'All Campus Locations').map((l) => (
@@ -337,7 +337,7 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-slate-700 focus:outline-hidden"
+              className="w-full min-w-0 max-w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-slate-700 focus:outline-hidden sm:w-auto"
             >
               <option value="all">All Statuses</option>
               <option value="Lost">Lost</option>

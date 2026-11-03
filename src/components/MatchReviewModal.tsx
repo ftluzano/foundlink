@@ -30,8 +30,8 @@ export const MatchReviewModal: React.FC<MatchReviewModalProps> = ({
   onDismissMatch
 }) => {
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-3xl w-full my-8 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center overflow-y-auto p-2 sm:p-4">
+      <div className="my-2 max-h-[calc(100dvh-1rem)] w-full max-w-3xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-150 sm:my-8">
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-900 text-white">
           <div className="flex items-center gap-2">
@@ -54,7 +54,7 @@ export const MatchReviewModal: React.FC<MatchReviewModalProps> = ({
           </button>
         </div>
 
-        <div className="p-6 space-y-6 max-h-[82vh] overflow-y-auto">
+        <div className="max-h-[calc(100dvh-10rem)] space-y-4 overflow-y-auto p-4 sm:max-h-[82vh] sm:space-y-6 sm:p-6">
           {/* Match Score Banner */}
           <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div>

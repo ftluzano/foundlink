@@ -95,8 +95,8 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
     : 'ST';
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full my-6 overflow-hidden animate-in fade-in zoom-in-95 duration-100 text-xs">
+    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center overflow-y-auto p-2 sm:p-4">
+      <div className="my-2 flex max-h-[calc(100dvh-1rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-xs shadow-2xl animate-in fade-in zoom-in-95 duration-100 sm:my-6">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-emerald-950/20 bg-[#174a32] px-5 py-4 text-white">
           <div className="flex items-center gap-2">
@@ -179,7 +179,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
         </div>
 
         {/* Edit Form */}
-        <form onSubmit={handleSubmit} className="p-5 space-y-4 max-h-[60vh] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3 sm:p-5">
           {savedSuccess && (
             <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 font-medium flex items-center gap-2 animate-in fade-in">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />

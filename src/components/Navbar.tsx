@@ -58,7 +58,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="sticky top-0 z-40 border-b border-emerald-950/10 bg-white/95 shadow-[0_2px_12px_rgba(20,45,33,0.06)] backdrop-blur-md">
       <div className="mx-auto max-w-[1440px] px-3 sm:px-6">
-        <div className="flex flex-col gap-2 py-2.5 lg:flex-row lg:items-center lg:justify-between lg:py-0">
+        <div className="flex flex-col gap-2 py-2.5 xl:flex-row xl:items-center xl:justify-between xl:py-0">
           {/* Brand */}
           <div className="flex items-center justify-between gap-3 sm:gap-6 min-w-0">
             <button
@@ -82,7 +82,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
 
             {/* Role-Specific Navigation Tabs */}
-            <nav className="hidden shrink-0 items-center gap-1 lg:flex text-xs font-semibold">
+            <nav className="hidden shrink-0 items-center gap-1 text-xs font-semibold xl:flex">
               {userRole === 'student' ? (
                 <>
                   <button
@@ -258,7 +258,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <LogOut className="w-3.5 h-3.5" />
             </button>
           </div>
-          <nav className="flex items-center gap-1 overflow-x-auto border-t border-slate-100 pt-2 text-[11px] font-semibold lg:hidden">
+          <nav className="flex min-w-0 items-center gap-1 overflow-x-auto border-t border-slate-100 pt-2 text-[11px] font-semibold xl:hidden">
             {(userRole === 'admin'
               ? ([['admin', 'Custodian'], ['directory', 'Directory'], ['messages', 'Messages'], ['community', 'Reputation']] as const)
               : ([['directory', 'Directory'], ['claims', 'My activity'], ['messages', 'Messages'], ['community', 'Reputation']] as const)

@@ -29,8 +29,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   onSelectNotificationConversation
 }) => {
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full my-8 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center overflow-y-auto p-2 sm:p-4">
+      <div className="my-2 max-h-[calc(100dvh-1rem)] w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-150 sm:my-8">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-emerald-950/20 bg-[#174a32] px-6 py-4 text-white">
           <div className="flex items-center gap-2">
@@ -62,7 +62,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
         </div>
 
         {/* Notification List */}
-        <div className="p-4 max-h-[70vh] overflow-y-auto space-y-2">
+        <div className="max-h-[calc(100dvh-7rem)] space-y-2 overflow-y-auto p-3 sm:max-h-[70vh] sm:p-4">
           {notifications.length === 0 ? (
             <div className="py-12 text-center text-slate-400 text-xs">
               <Bell className="w-8 h-8 mx-auto mb-2 text-slate-300" />

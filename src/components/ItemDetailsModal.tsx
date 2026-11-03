@@ -46,8 +46,8 @@ export const ItemDetailsModal: React.FC<ItemDetailsModalProps> = ({
   );
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-2xl w-full my-6 overflow-hidden animate-in fade-in zoom-in-95 duration-100 text-xs">
+    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center overflow-y-auto p-2 sm:p-4">
+      <div className="my-2 max-h-[calc(100dvh-1rem)] w-full max-w-2xl overflow-hidden rounded-xl border border-slate-200 bg-white text-xs shadow-2xl animate-in fade-in zoom-in-95 duration-100 sm:my-6">
         {/* Header */}
         <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-900 text-white">
           <div className="flex items-center gap-2">
@@ -66,7 +66,7 @@ export const ItemDetailsModal: React.FC<ItemDetailsModalProps> = ({
           </button>
         </div>
 
-        <div className="p-5 space-y-4 max-h-[78vh] overflow-y-auto">
+        <div className="max-h-[calc(100dvh-8rem)] space-y-4 overflow-y-auto p-3 sm:max-h-[78vh] sm:p-5">
           {/* Title & Status */}
           <div className="flex items-start justify-between gap-3">
             <div>

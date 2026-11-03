@@ -266,7 +266,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       </header>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-6 gap-2.5 text-xs">
+      <div className="grid grid-cols-2 gap-2.5 text-xs md:grid-cols-3 2xl:grid-cols-6">
         <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-xs">
           <span className="text-slate-500 block text-[11px]">Total Items</span>
           <span className="text-xl font-bold font-mono text-slate-900 tabular-nums">

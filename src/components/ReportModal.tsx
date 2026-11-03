@@ -153,8 +153,8 @@ export const ReportModal: React.FC<ReportModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-xl w-full my-6 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center overflow-y-auto p-2 sm:p-4">
+      <div className="my-2 max-h-[calc(100dvh-1rem)] w-full max-w-xl overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-100 sm:my-6">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-emerald-950/20 bg-[#174a32] px-5 py-3.5 text-white">
           <div className="flex items-center gap-2">
@@ -176,7 +176,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
           </button>
         </div>
 
-        <form noValidate onSubmit={handleSubmit} className="p-5 space-y-4 max-h-[78vh] overflow-y-auto text-xs">
+        <form noValidate onSubmit={handleSubmit} className="max-h-[calc(100dvh-5rem)] space-y-4 overflow-y-auto p-3 text-xs sm:max-h-[78vh] sm:p-5">
           {validationError && (
             <div className="p-2.5 rounded bg-rose-50 border border-rose-200 text-rose-700 font-medium">
               {validationError}

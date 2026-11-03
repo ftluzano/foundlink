@@ -284,6 +284,23 @@ h3 {
   color: #94a3b8;
 }
 
+@media (max-width: 639px) {
+  .auth-screen,
+  .app-shell {
+    min-height: 100dvh;
+  }
+
+  .auth-screen input:not([type="checkbox"]):not([type="radio"]),
+  .auth-screen select,
+  .auth-screen textarea,
+  .app-shell input:not([type="checkbox"]):not([type="radio"]),
+  .app-shell select,
+  .app-shell textarea {
+    max-width: 100%;
+    font-size: 16px;
+  }
+}
+
 .dark-mode [class~="bg-rose-50"],
 .dark-mode [class~="bg-rose-100"] {
   background-color: #3b1d2b !important;

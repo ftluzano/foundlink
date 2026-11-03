@@ -422,7 +422,7 @@ export default function App() {
       />
 
       {/* 2. Main Workspace Viewport */}
-      <main className="workspace-enter mx-auto w-full max-w-[1440px] flex-1 px-3 pt-5 sm:px-6 sm:pt-7">
+      <main className="workspace-enter mx-auto w-full max-w-[1440px] flex-1 px-3 pt-3 sm:px-6 sm:pt-7">
         {currentTab === 'directory' && (
           <PublicDirectory
             items={items}
