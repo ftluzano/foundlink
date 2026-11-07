@@ -98,7 +98,9 @@ export default function App() {
   }, [firebaseUid]);
 
   useEffect(() => {
-    if (userRole === 'student' && currentTab === 'admin') {
+    if (userRole === 'admin' && currentTab !== 'admin') {
+      setCurrentTab('admin');
+    } else if (userRole === 'student' && currentTab === 'admin') {
       setCurrentTab('directory');
     }
   }, [userRole, currentTab]);
@@ -423,7 +425,7 @@ export default function App() {
 
       {/* 2. Main Workspace Viewport */}
       <main className="workspace-enter mx-auto w-full max-w-[1440px] flex-1 px-3 pt-3 sm:px-6 sm:pt-7">
-        {currentTab === 'directory' && (
+        {userRole === 'student' && currentTab === 'directory' && (
           <PublicDirectory
             items={items}
             userProfile={userProfile}
@@ -437,7 +439,7 @@ export default function App() {
           />
         )}
 
-        {currentTab === 'claims' && (
+        {userRole === 'student' && currentTab === 'claims' && (
           <StudentPortalView
             claims={claims}
             items={items}
@@ -449,11 +451,11 @@ export default function App() {
           />
         )}
 
-        {currentTab === 'community' && (
+        {userRole === 'student' && currentTab === 'community' && (
           <CommunityDashboard reputation={reputation} userUid={firebaseUid} />
         )}
 
-        {currentTab === 'messages' && (
+        {userRole === 'student' && currentTab === 'messages' && (
           <MessagesDashboard
             conversations={conversations}
             userUid={firebaseUid}

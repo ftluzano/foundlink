@@ -3,7 +3,6 @@ import {
   Bell,
   Plus,
   Shield,
-  Package,
   User,
   Settings,
   LogOut,
@@ -75,7 +74,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="hidden text-[9px] font-semibold uppercase text-slate-500 sm:block">Campus lost &amp; found</span>
                 {userRole === 'admin' && (
                   <span className="hidden sm:inline text-[10px] font-mono font-semibold px-1.5 py-0.2 bg-slate-900 text-white rounded">
-                    OFFICER
+                    CUSTODIAN
                   </span>
                 )}
               </div>
@@ -136,32 +135,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <span>Custodian Console</span>
                   </button>
 
-                  <button
-                    onClick={() => onSelectTab('directory')}
-                    className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition-colors cursor-pointer ${
-                      currentTab === 'directory'
-                        ? 'bg-[#e7f0e9] text-[#174a32] font-bold'
-                        : 'text-slate-600 hover:text-[#174a32] hover:bg-emerald-50'
-                    }`}
-                  >
-                    <Package className="w-3.5 h-3.5" />
-                    <span>All Items Directory</span>
-                  </button>
-                  <button
-                    onClick={() => onSelectTab('community')}
-                    className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition-colors cursor-pointer ${currentTab === 'community' ? 'bg-[#e7f0e9] text-[#174a32] font-bold' : 'text-slate-600 hover:text-[#174a32] hover:bg-emerald-50'}`}
-                  >
-                    <Award className="w-3.5 h-3.5" />
-                    <span>Reputation</span>
-                  </button>
-                  <button
-                    onClick={() => onSelectTab('messages')}
-                    className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition-colors cursor-pointer ${currentTab === 'messages' ? 'bg-[#e7f0e9] text-[#174a32] font-bold' : 'text-slate-600 hover:text-[#174a32] hover:bg-emerald-50'}`}
-                  >
-                    <MessageSquare className="w-3.5 h-3.5" />
-                    <span>Messages</span>
-                    {messagesUnreadCount > 0 && <span className="rounded-full bg-emerald-700 px-1.5 py-0.5 text-[9px] text-white">{messagesUnreadCount}</span>}
-                  </button>
                 </>
               )}
             </nav>
@@ -170,7 +143,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Right Controls */}
           <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5 sm:gap-2">
             {/* Quick Action Buttons */}
-            <div className="flex items-center gap-1.5 min-w-0">
+            {userRole === 'student' && <div className="flex items-center gap-1.5 min-w-0">
               <button
                 onClick={() => onOpenReportModal('lost')}
                 className="flex shrink-0 cursor-pointer items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-[10px] font-bold text-rose-800 transition-colors hover:bg-rose-100 sm:px-3 sm:text-xs"
@@ -188,7 +161,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="hidden sm:inline">Surrender found</span>
                 <span className="sm:hidden">Found</span>
               </button>
-            </div>
+            </div>}
 
             {/* Notification Bell */}
             <button
@@ -260,7 +233,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
           <nav className="flex min-w-0 items-center gap-1 overflow-x-auto border-t border-slate-100 pt-2 text-[11px] font-semibold xl:hidden">
             {(userRole === 'admin'
-              ? ([['admin', 'Custodian'], ['directory', 'Directory'], ['messages', 'Messages'], ['community', 'Reputation']] as const)
+              ? ([['admin', 'Custodian']] as const)
               : ([['directory', 'Directory'], ['claims', 'My activity'], ['messages', 'Messages'], ['community', 'Reputation']] as const)
             ).map(([tab, label]) => (
               <button
