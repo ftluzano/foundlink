@@ -56,23 +56,15 @@ export default function App() {
   });
 
   // User profile data is persisted through the Turso API.
-  const [userProfile, setUserProfile] = useState<UserProfile>(() => {
-    try {
-      const saved = localStorage.getItem('foundlink_user_profile');
-      if (saved) return JSON.parse(saved);
-    } catch {
-      // fallback
-    }
-    return {
-      name: 'Francis T. Luzano',
-      course: 'Bachelor of Science in Information Technology (BSIT)',
-      contactNumber: '+63 917 842 1092',
-      email: 'ftluzano@paterostechnologicalcollege.edu.ph',
-      yearLevel: '3rd Year',
-      studentIdNumber: '2023-3TL-0482',
-      role: 'student',
-      photoBase64: ''
-    };
+  const [userProfile, setUserProfile] = useState<UserProfile>({
+    name: '',
+    course: '',
+    contactNumber: '',
+    email: '',
+    yearLevel: '',
+    studentIdNumber: '',
+    role: 'student',
+    photoBase64: ''
   });
 
   // Navigation & Role State
@@ -142,29 +134,43 @@ export default function App() {
 
   // 1. Subscribe to Firebase Auth and sync the user profile from Turso
   useEffect(() => {
-    const unsubAuth = authService.subscribeAuth(async (firebaseUser) => {
+    let unsubProfile = () => {};
+    const unsubAuth = authService.subscribeAuth((firebaseUser) => {
+      unsubProfile();
+      unsubProfile = () => {};
       if (firebaseUser) {
         setFirebaseUid(firebaseUser.uid);
         setIsAuthenticated(true);
         localStorage.setItem('foundlink_authenticated', 'true');
 
         // Subscribe to this user's Turso profile.
-        const unsubProfile = authService.subscribeUserProfile(
+        unsubProfile = authService.subscribeUserProfile(
           firebaseUser.uid,
           (remoteProfile) => {
             if (remoteProfile) {
               setUserProfile(remoteProfile);
-              localStorage.setItem('foundlink_user_profile', JSON.stringify(remoteProfile));
             }
           }
         );
-        return () => unsubProfile();
       } else {
         setFirebaseUid('');
+        setUserProfile({
+          name: '',
+          course: '',
+          contactNumber: '',
+          email: '',
+          yearLevel: '',
+          studentIdNumber: '',
+          role: 'student',
+          photoBase64: ''
+        });
       }
     });
 
-    return () => unsubAuth();
+    return () => {
+      unsubProfile();
+      unsubAuth();
+    };
   }, []);
 
   // 2. Subscribe to the Turso-backed site records.
@@ -261,7 +267,6 @@ export default function App() {
     setUserRole(resolveUserRole(normalizedProfile));
     setIsAuthenticated(true);
     localStorage.setItem('foundlink_authenticated', 'true');
-    localStorage.setItem('foundlink_user_profile', JSON.stringify(normalizedProfile));
     showToast(`Welcome to PTC FoundLink, ${normalizedProfile.name}!`);
   };
 
@@ -280,6 +285,16 @@ export default function App() {
     }
     setIsAuthenticated(false);
     setUserRole('student');
+    setUserProfile({
+      name: '',
+      course: '',
+      contactNumber: '',
+      email: '',
+      yearLevel: '',
+      studentIdNumber: '',
+      role: 'student',
+      photoBase64: ''
+    });
     localStorage.removeItem('foundlink_authenticated');
     showToast('Signed out of PTC FoundLink');
   };
@@ -329,19 +344,18 @@ export default function App() {
     };
 
     setUserProfile(normalizedProfile);
-    try {
-      localStorage.setItem('foundlink_user_profile', JSON.stringify(normalizedProfile));
-    } catch {
-      // fallback
-    }
 
     // Save profile data in Turso.
-    const currentUid = normalizedProfile.uid || authService.getCurrentUser()?.uid || 'local_user';
+    const currentUid = normalizedProfile.uid || authService.getCurrentUser()?.uid;
+    if (!currentUid) {
+      showToast('Sign in before saving your profile');
+      return;
+    }
     try {
       await authService.saveUserProfile(currentUid, normalizedProfile);
       showToast('Profile & 500x500 photo synced to Turso');
     } catch {
-      showToast('Profile saved locally');
+      showToast('Profile could not be synced to Turso');
     }
   };
 
