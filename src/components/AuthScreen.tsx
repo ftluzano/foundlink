@@ -42,8 +42,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
   // Profile fields for registration
   const [name, setName] = useState('');
   const [studentIdNumber, setStudentIdNumber] = useState('');
-  const [course, setCourse] = useState(PTC_COURSES[0]);
-  const [yearLevel, setYearLevel] = useState(PTC_YEAR_LEVELS[0]);
+  const [course, setCourse] = useState('');
+  const [yearLevel, setYearLevel] = useState('');
   const [contactNumber, setContactNumber] = useState('');
 
   const [loading, setLoading] = useState(false);
@@ -58,35 +58,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
 
     try {
       const profile = await authService.login(email, password);
-      if (profile) {
-        onAuthSuccess(profile);
-      } else {
-        const fallback: UserProfile = {
-          uid: 'student_' + Date.now(),
-          name: email.split('@')[0],
-          course,
-          contactNumber: contactNumber || '+63 917 000 0000',
-          email: email.trim(),
-          yearLevel,
-          studentIdNumber: studentIdNumber || '2023-3TL-0482',
-          role: 'student',
-          photoBase64: ''
-        };
-        onAuthSuccess(fallback);
-      }
-    } catch {
-      const fallback: UserProfile = {
-        uid: 'student_' + Date.now(),
-        name: email.split('@')[0] || 'PTC Student',
-        course,
-        contactNumber: contactNumber || '+63 917 000 0000',
-        email: email.trim(),
-        yearLevel,
-        studentIdNumber: studentIdNumber || '2023-3TL-0482',
-        role: 'student',
-        photoBase64: ''
-      };
-      onAuthSuccess(fallback);
+      onAuthSuccess(profile);
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Sign in failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -115,19 +89,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
       });
 
       onAuthSuccess(newProfile);
-    } catch {
-      const fallback: UserProfile = {
-        uid: 'user_' + Date.now(),
-        name: name || 'PTC Student',
-        course,
-        yearLevel,
-        studentIdNumber,
-        contactNumber,
-        email: email.trim(),
-        role: 'student',
-        photoBase64: ''
-      };
-      onAuthSuccess(fallback);
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -418,7 +381,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                     <CreditCard className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
-                      required
                       value={studentIdNumber}
                       onChange={(e) => setStudentIdNumber(e.target.value)}
                       placeholder="e.g. 2023-3TL-0482"
@@ -435,7 +397,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                     <Phone className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="tel"
-                      required
                       value={contactNumber}
                       onChange={(e) => setContactNumber(e.target.value)}
                       placeholder="+63 9XX XXX XXXX"
@@ -455,6 +416,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                     onChange={(e) => setCourse(e.target.value)}
                     className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg focus:ring-1 focus:ring-slate-900 bg-white text-slate-900 text-xs font-medium"
                   >
+                    <option value="">Select if available</option>
                     {PTC_COURSE_GROUPS.map((group) => (
                       <optgroup key={group.category} label={group.category}>
                         {group.courses.map((c) => (
@@ -477,6 +439,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                     onChange={(e) => setYearLevel(e.target.value)}
                     className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg focus:ring-1 focus:ring-slate-900 bg-white text-slate-900 text-xs font-medium"
                   >
+                    <option value="">Select if available</option>
                     {PTC_YEAR_LEVELS.map((y) => (
                       <option key={y} value={y}>
                         {y}

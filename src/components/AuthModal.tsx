@@ -54,8 +54,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   // Profile fields for registration
   const [name, setName] = useState('');
   const [studentIdNumber, setStudentIdNumber] = useState('');
-  const [course, setCourse] = useState(COURSES[0]);
-  const [yearLevel, setYearLevel] = useState(YEAR_LEVELS[2]);
+  const [course, setCourse] = useState('');
+  const [yearLevel, setYearLevel] = useState('');
   const [contactNumber, setContactNumber] = useState('');
 
   const [loading, setLoading] = useState(false);
@@ -70,22 +70,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     try {
       const profile = await authService.login(email, password);
-      if (profile) {
-        onAuthSuccess(profile);
-        onClose();
-      } else {
-        // Fallback profile if the Turso profile was empty.
-        const fallback: UserProfile = {
-          name: email.split('@')[0],
-          course: 'BS in Information Technology (BSIT)',
-          contactNumber: '+63 917 000 0000',
-          email: email.trim(),
-          yearLevel: '3rd Year (Junior)',
-          studentIdNumber: '2023-3TL-0482'
-        };
-        onAuthSuccess(fallback);
-        onClose();
-      }
+      onAuthSuccess(profile);
+      onClose();
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to sign in. Please verify your email and password.');
     } finally {
@@ -347,7 +333,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <User className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
-                    required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="e.g. Francis T. Luzano"
@@ -365,7 +350,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     <CreditCard className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
-                      required
                       value={studentIdNumber}
                       onChange={(e) => setStudentIdNumber(e.target.value)}
                       placeholder="2023-3TL-0482"
@@ -382,7 +366,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     <Phone className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="tel"
-                      required
                       value={contactNumber}
                       onChange={(e) => setContactNumber(e.target.value)}
                       placeholder="+63 9XX XXX XXXX"
@@ -402,6 +385,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     onChange={(e) => setCourse(e.target.value)}
                     className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg focus:ring-1 focus:ring-slate-900 bg-white"
                   >
+                    <option value="">Select if available</option>
                     {COURSES.map((c) => (
                       <option key={c} value={c}>
                         {c}
@@ -419,6 +403,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     onChange={(e) => setYearLevel(e.target.value)}
                     className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg focus:ring-1 focus:ring-slate-900 bg-white"
                   >
+                    <option value="">Select if available</option>
                     {YEAR_LEVELS.map((y) => (
                       <option key={y} value={y}>
                         {y}

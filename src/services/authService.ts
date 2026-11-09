@@ -21,6 +21,21 @@ const resolveUserRole = (email: string, role?: UserRole): UserRole => {
   return 'student';
 };
 
+const profileFromFirebaseUser = (user: User, profileData?: Partial<UserProfile>): UserProfile => ({
+  uid: user.uid,
+  name: profileData?.name?.trim() || user.displayName || '',
+  course: profileData?.course?.trim() || '',
+  contactNumber: profileData?.contactNumber?.trim() || user.phoneNumber || '',
+  email: user.email || profileData?.email?.trim() || '',
+  yearLevel: profileData?.yearLevel?.trim() || '',
+  studentIdNumber: profileData?.studentIdNumber?.trim() || '',
+  role: resolveUserRole(user.email || ''),
+  photoBase64: profileData?.photoBase64 || user.photoURL || ''
+});
+
+const profileChanged = (current: UserProfile, next: UserProfile) =>
+  Object.keys(next).some((key) => current[key as keyof UserProfile] !== next[key as keyof UserProfile]);
+
 export const authService = {
   /**
    * Listen to Firebase Auth state
@@ -58,29 +73,22 @@ export const authService = {
       const uid = cred.user.uid;
 
       const userProfile: UserProfile = {
-        uid,
-        name: profileData.name.trim(),
-        course: profileData.course,
-        contactNumber: profileData.contactNumber.trim(),
-        email: email.trim(),
-        yearLevel: profileData.yearLevel,
-        studentIdNumber: profileData.studentIdNumber.trim(),
-        role: resolveUserRole(email, 'student'),
-        photoBase64: profileData.photoBase64 || ''
+        ...profileFromFirebaseUser(cred.user, profileData),
+        email: cred.user.email || email.trim()
       };
 
-      // Store the profile in Turso; Firebase remains the identity provider.
-      try {
-        await tursoApi.create('users', uid, { ...userProfile, role: 'student', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
-      } catch (err) {
-        console.warn('Turso user write fallback:', err);
-      }
+      await tursoApi.create('users', uid, {
+        ...userProfile,
+        role: 'student',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
 
       return userProfile;
     } catch (err: any) {
       console.warn('Firebase register error:', err.code, err.message);
 
-      // If user already exists, attempt login or local session
+      // If user already exists, reuse the authenticated account.
       if (err.code === 'auth/email-already-in-use') {
         try {
           const loggedIn = await this.login(email, password);
@@ -90,19 +98,7 @@ export const authService = {
         }
       }
 
-      // Graceful offline / preview fallback
-      const fallbackProfile: UserProfile = {
-        uid: 'user_' + Date.now(),
-        name: profileData.name.trim() || 'PTC Student',
-        course: profileData.course,
-        contactNumber: profileData.contactNumber.trim() || '+63 917 000 0000',
-        email: email.trim(),
-        yearLevel: profileData.yearLevel,
-        studentIdNumber: profileData.studentIdNumber.trim() || '2023-3TL-0482',
-        role: resolveUserRole(email, 'student'),
-        photoBase64: profileData.photoBase64 || ''
-      };
-      return fallbackProfile;
+      throw err;
     }
   },
 
@@ -117,66 +113,13 @@ export const authService = {
       const profile = await this.getUserProfile(uid);
       if (profile) return { ...profile, role: resolveUserRole(cred.user.email || cleanEmail) };
 
-      return {
-        uid,
-        name: cleanEmail.split('@')[0],
-        course: 'Bachelor of Science in Information Technology (BSIT)',
-        contactNumber: '+63 917 000 0000',
-        email: cleanEmail,
-        yearLevel: '3rd Year',
-        studentIdNumber: '2023-3TL-0482',
-        role: resolveUserRole(cleanEmail, 'student'),
-        photoBase64: ''
-      };
+      const newProfile = profileFromFirebaseUser(cred.user);
+      await this.saveUserProfile(uid, newProfile);
+      return newProfile;
     } catch (err: any) {
       console.warn('Firebase login attempt failed:', err.code, err.message);
 
-      // If user not registered in this Firebase instance, attempt to register automatically
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
-        try {
-          const newCred = await createUserWithEmailAndPassword(auth, cleanEmail, password);
-          const uid = newCred.user.uid;
-          const newProfile: UserProfile = {
-            uid,
-            name: cleanEmail.split('@')[0],
-            course: 'Bachelor of Science in Information Technology (BSIT)',
-            contactNumber: '+63 917 000 0000',
-            email: cleanEmail,
-            yearLevel: '3rd Year',
-            studentIdNumber: '2023-3TL-0482',
-            role: resolveUserRole(cleanEmail, 'student'),
-            photoBase64: ''
-          };
-          await this.saveUserProfile(uid, newProfile).catch(() => {});
-          return newProfile;
-        } catch {
-          // If creation fails (e.g. password mismatch or permissions), provide valid student session
-          return {
-            uid: 'local_' + Date.now(),
-            name: cleanEmail.split('@')[0],
-            course: 'Bachelor of Science in Information Technology (BSIT)',
-            contactNumber: '+63 917 842 1092',
-            email: cleanEmail,
-            yearLevel: '3rd Year',
-            studentIdNumber: '2023-3TL-0482',
-            role: resolveUserRole(cleanEmail, 'student'),
-            photoBase64: ''
-          };
-        }
-      }
-
-      // Default resilient fallback so student is never locked out
-      return {
-        uid: 'session_' + Date.now(),
-        name: cleanEmail.split('@')[0],
-        course: 'Bachelor of Science in Information Technology (BSIT)',
-        contactNumber: '+63 917 842 1092',
-        email: cleanEmail,
-        yearLevel: '3rd Year',
-        studentIdNumber: '2023-3TL-0482',
-        role: resolveUserRole(cleanEmail, 'student'),
-        photoBase64: ''
-      };
+      throw err;
     }
   },
 
@@ -188,53 +131,35 @@ export const authService = {
       const res = await signInWithPopup(auth, googleProvider);
       const user = res.user;
 
-      // Check if a profile exists in Turso.
       const existing = await this.getUserProfile(user.uid);
       if (existing) {
-        return { ...existing, role: resolveUserRole(user.email || '') };
+        const identityProfile = profileFromFirebaseUser(user);
+        const syncedProfile: UserProfile = {
+          ...existing,
+          uid: user.uid,
+          name: existing.name || identityProfile.name,
+          email: identityProfile.email || existing.email,
+          contactNumber: existing.contactNumber || identityProfile.contactNumber,
+          photoBase64: existing.photoBase64 || identityProfile.photoBase64,
+          role: resolveUserRole(user.email || existing.email)
+        };
+        if (profileChanged(existing, syncedProfile)) await this.saveUserProfile(user.uid, syncedProfile);
+        return syncedProfile;
       }
 
-      // Default template for new Google sign-in
-      const newProfile: UserProfile = {
-        uid: user.uid,
-        name: user.displayName || 'Francis T. Luzano',
-        course: 'Bachelor of Science in Information Technology (BSIT)',
-        contactNumber: user.phoneNumber || '+63 917 842 1092',
-        email: user.email || 'ftluzano@paterostechnologicalcollege.edu.ph',
-        yearLevel: '3rd Year',
-        studentIdNumber: '2023-3TL-0482',
-        role: resolveUserRole(user.email || '', 'student'),
-        photoBase64: user.photoURL || ''
-      };
-
-      try {
-        await tursoApi.create('users', user.uid, {
-          ...newProfile,
-          role: 'student',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        });
-      } catch (err) {
-        console.warn('Turso Google user write fallback:', err);
-      }
+      const newProfile = profileFromFirebaseUser(user);
+      await tursoApi.create('users', user.uid, {
+        ...newProfile,
+        role: 'student',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
 
       return newProfile;
     } catch (err: any) {
       console.warn('Google popup error:', err.code, err.message);
 
-      // If domain not authorized in Firebase Console or popup blocked by iframe:
-      // Smoothly resolve to official PTC student profile so user is NEVER blocked
-      return {
-        uid: 'google_session_ftluzano',
-        name: 'Francis T. Luzano',
-        course: 'BS in Information Technology (BSIT)',
-        contactNumber: '+63 917 842 1092',
-        email: 'ftluzano@paterostechnologicalcollege.edu.ph',
-        yearLevel: '3rd Year (Junior)',
-        studentIdNumber: '2023-3TL-0482',
-        role: 'student',
-        photoBase64: ''
-      };
+      throw err;
     }
   },
 
@@ -280,12 +205,13 @@ export const authService = {
   * Save or update the signed-in user's profile in Turso
    */
   async saveUserProfile(uid: string, profile: UserProfile): Promise<void> {
-    try {
-      const { role: _role, ...profileFields } = profile;
-      await tursoApi.save('users', uid, { ...profileFields, uid, role: 'student', updatedAt: new Date().toISOString() });
-    } catch (err) {
-      console.warn('Failed to save profile to Turso:', err);
-    }
+    const { role: _role, ...profileFields } = profile;
+    await tursoApi.save('users', uid, {
+      ...profileFields,
+      uid,
+      role: 'student',
+      updatedAt: new Date().toISOString()
+    });
   },
 
   /**
@@ -300,7 +226,7 @@ export const authService = {
         });
       };
       refresh();
-      const interval = window.setInterval(refresh, 15_000);
+      const interval = window.setInterval(refresh, 3_000);
       return () => {
         active = false;
         window.clearInterval(interval);
